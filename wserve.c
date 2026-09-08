@@ -168,7 +168,7 @@ ssize_t _send(int newfd, void *buf, size_t nbytes)
     size_t bytes_sent = 0;        
     size_t bytes_left = nbytes;
     ssize_t n = 0;
-    void *p = buf;
+    char *p = buf;
 
     while(bytes_sent < nbytes) { 
         n = send(newfd, p, bytes_left, 0);
@@ -198,7 +198,7 @@ ssize_t _recv(int newfd, void *buf, size_t nbytes)
     size_t bytes_recv = 0;        
     size_t bytes_left = nbytes;
     ssize_t n = 0;
-    void *p = buf;
+    char *p = buf;
 
     while(bytes_recv < nbytes) {
         n = recv(newfd, p, bytes_left, 0);
@@ -218,8 +218,8 @@ ssize_t _recv(int newfd, void *buf, size_t nbytes)
 // int backlog: Max length of connection queue.
 void wserve(char *port, int backlog)
 {
-    char msg[] = "Hello, world!\n"; 
-    size_t len = strlen(msg);
+    char request[30];
+    char response[] = "Got it! Hello, world!\n";
     int listenfd = create_listen_socket(port, backlog);
 
     install_sigchld_handler();
@@ -232,9 +232,12 @@ void wserve(char *port, int backlog)
         {
             // Child proocess exit but the parent does not
             // wait. Child turns into a zombie. That is why
-            // the dignal handler is required.
+            // the signal handler is required.
             close(listenfd);
-            _send(newfd, msg, len);
+            _recv(newfd, request, 4);
+            printf("REQUEST: %s", request);
+            _send(newfd, response, strlen(response));
+            printf("RESPONSE: %s", response);
             close(newfd);
             exit(0);
         }
