@@ -1,7 +1,7 @@
 
 # WSERVE: Educational Web Server in Pure C
 
-The goal of this project to build an education web server in pure C. 
+The goal of this project to build an education IPv4 web server in pure C. 
 Educational means it will not have any production use, and therefore
 code readability is more important than its security or efficiency.
 
