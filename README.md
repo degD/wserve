@@ -1,0 +1,36 @@
+
+# WSERVE: Educational Web Server in Pure C
+
+The goal of this project to build an education web server in pure C. 
+Educational means it will not have any production use, and therefore
+code readability is more important than its security or efficiency.
+
+The web server will be able parse a subset of HTTP/1.1 commands.
+These commands are GET, HEAD, POST. So, there will also be a minimal
+parser for this project. Transfer-Encoding, conflicting duplicate 
+Content-Length values, malformed requests, oversized headers, and 
+oversized bodies will be automaticly rejected. Response codes will be
+implemented. For each connection, it will serve a single request and 
+response pair and close the connection. 
+
+There will be a routing table just like the way Flask works. Each route
+will have a path (/about), method (GET), and a corresponding handler 
+function. For example, the path (/about) could respond to GET requests 
+and send about.html. All will be configurable in C. It will return 404
+if route not found and 405 if route is not configured for the method.
+There will be static mounts for assets, and directory will be 
+configurable. Only serve files under project root. Reject empty, 
+absolute, `.`, and `..` path components and malformed percent encodings.
+Prevent symbolic-link escapes with descriptor-based traversal using 
+`openat()` and `O_NOFOLLOW`. Return `404` for missing files and 
+directories. Do not provide directory listings or index-file resolution.
+It will initially support a small explicit MIME map: HTML, CSS, 
+JavaScript, JSON, plain text, PNG, JPEG, SVG, and `application/octet-stream`.
+
+## v0.1
+
+TCP server loop that accepts a request and sends a response.
+
+## v0.2 
+
+Simple HTTP headers parser. Respond only to GET. 
