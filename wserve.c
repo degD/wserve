@@ -18,10 +18,11 @@
 // #######################
 
 void sigchld_handler(int s);
+int install_sigchld_handler(void);
 int create_listen_socket(char *port, int backlog);
 int accept_connection(int listenfd);
-int _send(int newfd, void *buf, size_t nbytes);
-int _recv(int newfd, void *buf, size_t nbytes);
+ssize_t _send(int newfd, void *buf, size_t nbytes);
+ssize_t _recv(int newfd, void *buf, size_t nbytes);
 void wserve(char *port, int backlog);
 
 
@@ -40,6 +41,11 @@ int main(void)
 // # SERVER TCP FUNCTIONS #
 // ########################
 
+// Signal handler to reap zombie child processes. After 
+// installation, called automatically by OS whenever a 
+// child process exits. 
+// 
+// int s: Signal number (Normally SIGCHLD). Used by OS.
 void sigchld_handler(int s)
 {
     int saved_errno = errno;
@@ -48,6 +54,13 @@ void sigchld_handler(int s)
     errno = saved_errno;
 }
 
+// Install the handler for the process calling sigaction.
+// Its signal disposition is inherited by its children.
+// Therefore, enables the OS to call sigchld_handler for
+// the parent and the children, reaping them when they turn
+// zombies.
+//
+// Returns 0 if works, -1 otherwise.
 int install_sigchld_handler(void) 
 {
     struct sigaction sa;
@@ -55,12 +68,20 @@ int install_sigchld_handler(void)
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = SA_RESTART;
     if (sigaction(SIGCHLD, &sa, NULL) == -1) {
-        perror("sigaction");
+        perror("wserve: sigaction");
         return -1;
     }
     return 0;
 }
 
+// Create and return a socket for listening to incoming
+// connection requests. The server uses this socket to
+// Accept incoming connections. 
+//
+// char *port: Port number that server will use.
+// int backlog: Requested max length of connection queue.
+//
+// Returns the socket FD. Returns -1 if it fails.
 int create_listen_socket(char *port, int backlog)
 {
     int listenfd;
@@ -108,6 +129,14 @@ int create_listen_socket(char *port, int backlog)
     return listenfd;
 }
 
+// Await a connection on socket listenfd.
+// Return a socket for communcating with the
+// client. 
+//
+// int listenfd: Socket for listening. 
+//
+// Returns the socket for communcation, or -1
+// if fails.
 int accept_connection(int listenfd)
 {
     struct sockaddr_storage ss;
@@ -125,14 +154,23 @@ int accept_connection(int listenfd)
     return newfd;      
 }
 
-int _send(int newfd, void *buf, size_t nbytes)
+// Send N bytes of buffer to socket.
+// Can handle partial sends automatically.
+//
+// int newfd: Socket FD.
+// void *buf: Buffer.
+// size_t nbytes: N bytes to send from buffer.
+//
+// Returns number of bytes sent. Returns -1
+// if fails.
+ssize_t _send(int newfd, void *buf, size_t nbytes)
 {
     size_t bytes_sent = 0;        
     size_t bytes_left = nbytes;
-    size_t n = 0;
+    ssize_t n = 0;
     void *p = buf;
 
-    while(bytes_sent < nbytes) {
+    while(bytes_sent < nbytes) { 
         n = send(newfd, p, bytes_left, 0);
         if (n < 0) break;
         bytes_sent += n;
@@ -143,11 +181,23 @@ int _send(int newfd, void *buf, size_t nbytes)
     return n == -1 ? -1 : bytes_sent;
 } 
 
-int _recv(int newfd, void *buf, size_t nbytes)
+// Receive up to N bytes to buffer from socket.
+// Up to N, because the client can close the
+// connection while data has been received.
+// It is an orderly connection shutdown. Can 
+// handle partial receives automatically.
+//
+// int newfd: Socket FD.
+// void *buf: Buffer.
+// size_t nbytes: N bytes to receive to buffer.
+//
+// Returns number of bytes received. Returns -1
+// if fails.
+ssize_t _recv(int newfd, void *buf, size_t nbytes)
 {
     size_t bytes_recv = 0;        
     size_t bytes_left = nbytes;
-    size_t n = 0;
+    ssize_t n = 0;
     void *p = buf;
 
     while(bytes_recv < nbytes) {
@@ -161,6 +211,11 @@ int _recv(int newfd, void *buf, size_t nbytes)
     return n == -1 ? -1 : bytes_recv;
 } 
 
+// Server core loop. Runs indefinitely and 
+// returns nothing. 
+//
+// char *port: Port number that server will use.
+// int backlog: Max length of connection queue.
 void wserve(char *port, int backlog)
 {
     char msg[] = "Hello, world!\n"; 
@@ -175,6 +230,9 @@ void wserve(char *port, int backlog)
 
         if (!fork()) 
         {
+            // Child proocess exit but the parent does not
+            // wait. Child turns into a zombie. That is why
+            // the dignal handler is required.
             close(listenfd);
             _send(newfd, msg, len);
             close(newfd);
