@@ -27,17 +27,6 @@ ssize_t _recv(int newfd, void *buf, size_t nbytes);
 void wserve(char *port, int backlog);
 
 
-// #####################
-// # RUNTIME FUNCTIONS #
-// #####################
-
-int main(void)
-{
-    wserve("6666", 100);
-    return 0;
-}
-
-
 // ########################
 // # SERVER TCP FUNCTIONS #
 // ########################
@@ -270,7 +259,6 @@ int count_substring(char *str, char *substr)
 {
     int len_str = strlen(str);
     int len_substr = strlen(substr);
-    int i = len_substr;
     int c = 0;
     int f;
 
@@ -337,7 +325,6 @@ HTTP_HEAD parse_headers(char *http_msg)
     char *saveptr;
     char *head;
     char *line;
-    char *token;
 
     head = strtok_r(http_msg, "/r/n/r/n", &saveptr);
     http_head.num_of_headers = count_substring(head, "/r/n") - 1;
