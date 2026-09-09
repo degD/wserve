@@ -279,26 +279,58 @@ int count_substring(char *str, char *substr)
     return c;
 }
 
+char *split_str(char *str, char *delimiter, char **saveptr)
+{
+    char *p;
+
+    if (str == NULL)
+    {
+        str = *saveptr;
+    }
+
+    if (str == NULL && *saveptr == NULL)
+    {
+        return NULL;
+    }
+
+    p = strstr(str, delimiter);
+    if (p == NULL)
+    {
+        str = *saveptr;
+        *saveptr = NULL;
+        return str;
+    }
+
+    p[0] = '\0';
+    *saveptr = p + strlen(delimiter) * sizeof(char);
+    return str;
+}
+
 char *trim(char *str)
 {
     int len = strlen(str);
-    char *tstr = malloc(len * sizeof(char));
+    char *tstr;
+    int start, end, i;
     int j = 0;
 
-    for (int i = 0; i < len; i++)
-    {
-        if (!isspace(str[i]))
-        {
-            tstr[j] = str[i];
-        }
-    }
+    i = 0;
+    while (isspace(str[i++]));
+    start = i - 1;
+
+    i = 0;
+    while (isspace(str[len - 1 - (i++)]));
+    end = len - i;
+
+    tstr = malloc((end - start + 2) * sizeof(char));
+    for (i = start; i <= end; i++) tstr[j++] = str[i];
+    tstr[j] = '\0';
 
     return tstr;
 }
 
 char *get_http_body(char *http_msg)
 {
-    char *http_body = strstr(http_msg, "/r/n/r/n");
+    char *http_body = strstr(http_msg, "\r\n\r\n");
     if (http_body != NULL)
     {
         http_body += 4 * sizeof(char);
@@ -312,8 +344,8 @@ HTTP_HEADER parse_http_header_line(char *line)
     char *val;
     HTTP_HEADER hh;
 
-    hh.key = strtok_r(line, ":", &saveptr);
-    val = strtok_r(NULL, ":", &saveptr);
+    val = strstr(line, ":") + sizeof(char);
+    hh.key = split_str(line, ":", &saveptr);
     hh.val = trim(val);
 
     return hh;
@@ -326,16 +358,16 @@ HTTP_HEAD parse_headers(char *http_msg)
     char *head;
     char *line;
 
-    head = strtok_r(http_msg, "/r/n/r/n", &saveptr);
-    http_head.num_of_headers = count_substring(head, "/r/n") - 1;
-    http_head.start_line = strtok_r(head, "/r/n", &saveptr);
+    head = split_str(http_msg, "\r\n\r\n", &saveptr);
+    http_head.num_of_headers = count_substring(head, "\r\n");
+    http_head.start_line = split_str(head, "\r\n", &saveptr);
     http_head.headers = malloc(http_head.num_of_headers * sizeof(HTTP_HEADER));
-    line = strtok_r(NULL, "/r/n", &saveptr);
+    line = split_str(NULL, "\r\n", &saveptr);
 
     for (int i = 0; i < http_head.num_of_headers; i++)
     {
         http_head.headers[i] = parse_http_header_line(line);
-        line = strtok_r(NULL, "/r/n", &saveptr);
+        line = split_str(NULL, "\r\n", &saveptr);
     }
 
     return http_head;
@@ -344,9 +376,9 @@ HTTP_HEAD parse_headers(char *http_msg)
 void print_http_head(HTTP_HEAD http_head)
 {
     printf("\nHTTP HEAD:\n");
-    printf("%s\n", http_head.start_line);
+    printf("  %s\n", http_head.start_line);
     for(int i = 0; i < http_head.num_of_headers; i++)
     {
-        printf("%s: %s\n", http_head.headers[i].key, http_head.headers[i].val);
+        printf("  %s: %s\n", http_head.headers[i].key, http_head.headers[i].val);
     }
 }
