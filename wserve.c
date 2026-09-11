@@ -382,3 +382,194 @@ void print_http_head(HTTP_HEAD http_head)
         printf("  %s: %s\n", http_head.headers[i].key, http_head.headers[i].val);
     }
 }
+
+
+// ##########################
+// # HTTP MESSAGE VALIDATOR #
+// ##########################
+
+/*
+Most HTTP header field values are defined using common syntax
+components (token, quoted-string, and comment) separated by
+whitespace or specific delimiting characters.  Delimiters are chosen
+from the set of US-ASCII visual characters not allowed in a token
+(DQUOTE and "(),/:;<=>?@[\]{}").
+
+token          = 1*tchar
+
+tchar          = "!" / "#" / "$" / "%" / "&" / "'" / "*"
+            / "+" / "-" / "." / "^" / "_" / "`" / "|" / "~"
+            / DIGIT / ALPHA
+            ; any VCHAR, except delimiters
+
+
+HTTP-message   = start-line
+                *( header-field CRLF )
+                CRLF
+                [ message-body ]
+
+
+start-line     = request-line / status-line
+
+
+request-line   = method SP request-target SP HTTP-version CRLF
+
+
+status-line = HTTP-version SP status-code SP reason-phrase CRLF
+
+
+HTAB (horizontal tab)
+OWS            = *( SP / HTAB )
+            ; optional whitespace
+
+header-field   = field-name ":" OWS field-value OWS
+
+field-name     = token
+field-value    = *( field-content / obs-fold )
+field-content  = field-vchar [ 1*( SP / HTAB ) field-vchar ]
+field-vchar    = VCHAR / obs-text
+
+obs-fold       = CRLF 1*( SP / HTAB )
+            ; obsolete line folding
+            ; see Section 3.2.4
+*/
+
+int is_token(char *str)
+{
+    return 1;
+}
+
+int validate_http_head(char *http_msg)
+{
+    if (
+        is_http_head_complete(http_msg) &&
+        validate_start_line(http_msg)   &&
+        validate_headers(http_msg)      
+    ) 
+    return 1;
+    else return 0;
+}
+
+int is_http_head_complete(char *http_msg)
+{
+    return get_http_body(http_msg) == NULL ? 0 : 1;
+}
+
+int validate_start_line(char *start_line)
+{
+    if (
+        validate_request_line(start_line) &&
+        validate_status_line(start_line)     
+    ) 
+    return 1;
+    else return 0;
+}
+
+int is_end_crlf(char *token)
+{
+    size_t len = strlen(token);
+    if (
+        token[len-3] == '\r' &&
+        token[len-2] == '\n'
+    )
+    return 1;
+    else return 0;
+}
+
+int validate_request_line(char *start_line)
+{
+    char *token;
+    char *saveptr;
+    char *_start_line = malloc((strlen(start_line) + 1) * sizeof(char));
+
+    strcpy(_start_line, start_line);
+    
+    if (split_str(_start_line, " ", saveptr) == NULL)
+    {
+        free(_start_line);
+        return 0;
+    }
+    if (split_str(NULL, " ", saveptr) == NULL)
+    {
+        free(_start_line);
+        return 0;
+    }
+    token = split_str(NULL, " ", saveptr);
+    if (token == NULL || !is_end_crlf(token))
+    {
+        free(_start_line);
+        return 0;
+    }
+    if (split_str(NULL, " ", saveptr) != NULL)
+    {
+        free(_start_line);
+        return 0;
+    }
+
+    return 1;
+}
+
+int validate_status_line(char *start_line)
+{
+    validate_request_line(start_line);
+}
+
+int validate_headers(char *headers)
+{
+    char *token;
+    char *saveptr;
+    char *_headers = malloc((strlen(headers) + 1) * sizeof(char));
+
+    strcpy(_headers, headers);
+
+    token = split_str(_headers, "\r\n", saveptr);
+    while (token != NULL)
+    {
+        if (validate_header_line(token) == 0)
+        {
+            free(_headers);
+            return 0;
+        }
+    }
+
+    free(_headers);
+    return 1;
+}
+
+int validate_header_line(char *header_line)
+{
+    char *token;
+    char *saveptr;
+    char *_header_line = malloc((strlen(header_line) + 1) * sizeof(char));
+
+    strcpy(_header_line, header_line);
+
+    if (split_str(_header_line, ":", saveptr) == NULL) 
+    {
+        free(_header_line);
+        return 0;
+    }
+    token = split_str(NULL, ":", saveptr);
+    if (token == NULL) 
+    {
+        free(_header_line);
+        return 0;
+    }
+    
+    token = trim(token);
+    if (validate_field_value(token) == 0)
+    {
+        free(token);
+        free(_header_line);
+        return 0;
+    }
+    free(token);
+
+    if (split_str(NULL, " ", saveptr) != NULL)
+    {
+        free(_header_line);
+        return 0;
+    }
+
+    return 1;
+}
