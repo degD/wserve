@@ -43,9 +43,9 @@ newline automatically.
 
 ## v0.2 
 
-Simple HTTP headers parser and validator. Test set for the parser.
+Simple HTTP headers parser. Test set for the parser.
 
 
 ## v0.3 
 
-Server that only responds to valid HTTP GET requests.
+Server that only responds to HTTP requests.
