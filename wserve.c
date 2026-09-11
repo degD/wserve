@@ -240,6 +240,7 @@ void wserve(char *port, int backlog)
 // # HTTP HEADERS PARSER #
 // #######################
 
+// Struct representing an HTTP header.
 typedef struct HTTP_HEADER
 {
     char *key;
@@ -247,6 +248,9 @@ typedef struct HTTP_HEADER
 }
 HTTP_HEADER;
 
+// Struct representing an HTTP head,
+// which includes the start-line and
+// header fields.
 typedef struct HTTP_HEAD
 {
     char *start_line;
@@ -255,6 +259,12 @@ typedef struct HTTP_HEAD
 }
 HTTP_HEAD;
 
+// Count occurances of "substr" inside "str".
+// 
+// char *str: haystack.
+// char *substr: needle.
+//
+// Return number of occurances. 0 if none.
 int count_substring(char *str, char *substr)
 {
     int len_str = strlen(str);
@@ -279,7 +289,19 @@ int count_substring(char *str, char *substr)
     return c;
 }
 
-char *split_str(char *str, char *delimiter, char **saveptr)
+// Split "str" into sub-strings by "substr". Works very
+// similar to "strtok_r". Except instead of separating 
+// "str" by multiple delimiters, it splits by a single,
+// multi-character "substr". Similar to Python str.split().
+// Call with NULL in place of "str" for subsequent calls.
+//
+// char *str: The string to be splitted.
+// char *substr: The string to be used for splitting.
+// char **saveptr: Pointer for remaining section after split.
+//
+// Returns a pointer to the splitted "token". Just like
+// "strtok_r", returns NULL when no "token" left.
+char *split_str(char *str, char *substr, char **saveptr)
 {
     char *p;
 
@@ -293,7 +315,7 @@ char *split_str(char *str, char *delimiter, char **saveptr)
         return NULL;
     }
 
-    p = strstr(str, delimiter);
+    p = strstr(str, substr);
     if (p == NULL)
     {
         str = *saveptr;
@@ -302,10 +324,18 @@ char *split_str(char *str, char *delimiter, char **saveptr)
     }
 
     p[0] = '\0';
-    *saveptr = p + strlen(delimiter) * sizeof(char);
+    *saveptr = p + strlen(substr) * sizeof(char);
     return str;
 }
 
+// Removes whitespace from both ends of "str" and 
+// returns a new malloc'ed string, without modifying 
+// the original. Because a new string is returned, 
+// it is up to programmer to "free()" it.
+// 
+// char *str: String to be trimmed.
+//
+// Returns pointer to the new string.
 char *trim(char *str)
 {
     int len = strlen(str);
@@ -328,6 +358,17 @@ char *trim(char *str)
     return tstr;
 }
 
+// HTTP messages have two main parts, the "head" and 
+// the "body". They are separated by a "CRLF CRLF"
+// separator. This function returns a pointer to the
+// message body by finding this "CRLF CRLF" and pointing
+// to the first char after it. "http_msg" should end with
+// "\0" for this function to work.
+//
+// char *http_msg: HTTP message to be scanned.
+//
+// Returns either a pointer to the body, or NULL if body
+// "CRLF CRLF" not found.
 char *get_http_body(char *http_msg)
 {
     char *http_body = strstr(http_msg, "\r\n\r\n");
@@ -338,6 +379,12 @@ char *get_http_body(char *http_msg)
     return http_body;
 }
 
+// Parse a single line of HTTP header and return
+// an "HTTP_HEADER" representing it.
+// 
+// char *line: Header line.
+//
+// Returns the "HTTP_HEADER" variable.
 HTTP_HEADER parse_http_header_line(char *line)
 {
     char *saveptr;
@@ -351,7 +398,13 @@ HTTP_HEADER parse_http_header_line(char *line)
     return hh;
 }
 
-HTTP_HEAD parse_headers(char *http_msg)
+// Parse the HTTP "head" of a given "http_msg".
+// Returns an "HTTP_HEAD" to represent it.
+// 
+// char *http_msg: HTTP message to be parsed.
+//
+// Returns the "HTTP_HEAD" variable.
+HTTP_HEAD parse_head(char *http_msg)
 {
     HTTP_HEAD http_head;
     char *saveptr;
@@ -373,6 +426,9 @@ HTTP_HEAD parse_headers(char *http_msg)
     return http_head;
 }
 
+// Print an HTTP_HEAD for visual inspection.
+//
+// HTTP_HEAD http_head: HTTP_HEAD variable.
 void print_http_head(HTTP_HEAD http_head)
 {
     printf("\nHTTP HEAD:\n");
