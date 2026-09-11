@@ -1,4 +1,5 @@
 
+#include "wserve.h"
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,19 +13,6 @@
 #include <sys/wait.h>
 #include <signal.h>
 #include <string.h>
-
-
-// #######################
-// # FUNCTION PROTOTYPES #
-// #######################
-
-void sigchld_handler(int s);
-int install_sigchld_handler(void);
-int create_listen_socket(char *port, int backlog);
-int accept_connection(int listenfd);
-ssize_t _send(int newfd, void *buf, size_t nbytes);
-ssize_t _recv(int newfd, void *buf, size_t nbytes);
-void wserve(char *port, int backlog);
 
 
 // ########################
@@ -241,23 +229,12 @@ void wserve(char *port, int backlog)
 // #######################
 
 // Struct representing an HTTP header.
-typedef struct HTTP_HEADER
-{
-    char *key;
-    char *val;
-}
-HTTP_HEADER;
+typedef struct HTTP_HEADER HTTP_HEADER;
 
 // Struct representing an HTTP head,
 // which includes the start-line and
 // header fields.
-typedef struct HTTP_HEAD
-{
-    char *start_line;
-    int num_of_headers;
-    HTTP_HEADER *headers;
-}
-HTTP_HEAD;
+typedef struct HTTP_HEAD HTTP_HEAD;
 
 // Count occurances of "substr" inside "str".
 // 

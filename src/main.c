@@ -1,5 +1,5 @@
 
-#include "wserve.c"
+#include "wserve.h"
 
 int main(void)
 {

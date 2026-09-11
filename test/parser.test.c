@@ -1,5 +1,5 @@
 
-#include "wserve.c"
+#include "../src/wserve.h"
 #include <assert.h>
 #include <string.h>
 
@@ -22,7 +22,7 @@ Content-Length: 162\r\n\
 Connection: keep-alive\r\n\
 Location: https://wiki.archlinux.org/\r\n\r\n\
 BODYasdfasdfasdf";
-    HTTP_HEAD hh = parse_headers(http_msg);
+    HTTP_HEAD hh = parse_head(http_msg);
     print_http_head(hh);
     puts("[INSPECT] HTTP message parsing");
 
