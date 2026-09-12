@@ -353,11 +353,14 @@ char *get_http_body(char *http_msg, size_t len)
     memcpy(_http_msg, http_msg, len);
     _http_msg[len] = '\0';
 
-    strstr(_http_msg, "\r\n\r\n");
+    http_body = strstr(_http_msg, "\r\n\r\n");
     if (http_body != NULL)
     {
         http_body += 4 * sizeof(char);
+        http_body = http_msg + (_http_msg - http_body);
     }
+
+    free(_http_msg);
     return http_body;
 }
 
@@ -384,6 +387,8 @@ HTTP_HEADER parse_http_header_line(char *line)
         val = strstr(_line, ":") + sizeof(char);
         hh.key = split_str(_line, ":", &saveptr);
         hh.val = trim(val);
+
+        printf("K: %s V: %s\n", hh.key, hh.val);
     }
 
     return hh;
@@ -428,5 +433,61 @@ void print_http_head(HTTP_HEAD http_head)
     for(int i = 0; i < http_head.num_of_headers; i++)
     {
         printf("  %s: %s\n", http_head.headers[i].key, http_head.headers[i].val);
+    }
+}
+
+
+// ###############
+// # HTTP SERVER #
+// ###############
+
+void wserve_http(
+    char *port, 
+    int backlog,
+    size_t bufsize
+) {
+    int listenfd = create_listen_socket(port, backlog);
+
+    install_sigchld_handler();
+    while (1)
+    {
+        int newfd = accept_connection(listenfd);
+        if (newfd == -1) continue;
+
+        printf("Connection to socket %d\n", newfd);
+
+        if (!fork())
+        {
+            close(listenfd);
+            char *http_msg = malloc(100 * sizeof(char));
+            char *http_body = NULL;
+            size_t http_msg_size = 0;
+            ssize_t n;
+            HTTP_HEAD hh;
+
+            while (http_body == NULL)
+            {
+                n = _recv(newfd, http_msg + http_msg_size, bufsize);
+                if (n == -1) 
+                {
+                    free(http_msg);
+                    close(newfd);
+                    exit(0);
+                }
+                
+                http_msg_size += n;
+                http_body = get_http_body(http_msg, http_msg_size);
+                if (http_body == NULL) http_msg = realloc(http_msg, (http_msg_size + 1) * sizeof(char));
+            }
+
+            hh = parse_head(http_msg);
+            print_http_head(hh);
+            puts("Closing connection...");
+
+            free(http_msg);
+            close(newfd);
+            exit(0);
+        }
+        close(newfd);
     }
 }

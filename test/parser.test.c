@@ -22,6 +22,8 @@ Content-Length: 162\r\n\
 Connection: keep-alive\r\n\
 Location: https://wiki.archlinux.org/\r\n\r\n\
 BODYasdfasdfasdf";
+    char *http_body = get_http_body(http_msg, 212);
+    printf("%s", http_body);
     HTTP_HEAD hh = parse_head(http_msg);
     print_http_head(hh);
     puts("[INSPECT] HTTP message parsing");

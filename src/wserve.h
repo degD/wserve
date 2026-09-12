@@ -58,4 +58,11 @@ HTTP_HEAD parse_head(char *http_msg);
 void print_http_head(HTTP_HEAD http_head);
 
 
+// ###############
+// # HTTP SERVER #
+// ###############
+
+void wserve_http(char *port, int backlog, size_t bufsize); 
+
+
 #endif

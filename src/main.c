@@ -3,6 +3,7 @@
 
 int main(void)
 {
-    wserve("6666", 100);
+    puts("HTTP WSERVE...");
+    wserve_http("6600", 100, 1);
     return 0;
 }
