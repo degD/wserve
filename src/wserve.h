@@ -52,7 +52,7 @@ HTTP_HEAD;
 int count_substring(char *str, char *substr);
 char *split_str(char *str, char *substr, char **saveptr);
 char *trim(char *str);
-char *get_http_body(char *http_msg);
+char *get_http_body(char *http_msg, size_t len);
 HTTP_HEADER parse_http_header_line(char *line);
 HTTP_HEAD parse_head(char *http_msg);
 void print_http_head(HTTP_HEAD http_head);

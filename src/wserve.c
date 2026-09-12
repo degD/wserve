@@ -295,7 +295,6 @@ char *split_str(char *str, char *substr, char **saveptr)
     p = strstr(str, substr);
     if (p == NULL)
     {
-        str = *saveptr;
         *saveptr = NULL;
         return str;
     }
@@ -321,11 +320,11 @@ char *trim(char *str)
     int j = 0;
 
     i = 0;
-    while (isspace(str[i++]));
+    while (i < len && isspace(str[i++]));
     start = i - 1;
 
     i = 0;
-    while (isspace(str[len - 1 - (i++)]));
+    while (i < len && isspace(str[len - 1 - (i++)]));
     end = len - i;
 
     tstr = malloc((end - start + 2) * sizeof(char));
@@ -339,16 +338,22 @@ char *trim(char *str)
 // the "body". They are separated by a "CRLF CRLF"
 // separator. This function returns a pointer to the
 // message body by finding this "CRLF CRLF" and pointing
-// to the first char after it. "http_msg" should end with
-// "\0" for this function to work.
+// to the first char after it. Looks up to "len" chars.
 //
 // char *http_msg: HTTP message to be scanned.
+// size_t len: Length (size) of HTTP message.
 //
 // Returns either a pointer to the body, or NULL if body
 // "CRLF CRLF" not found.
-char *get_http_body(char *http_msg)
+char *get_http_body(char *http_msg, size_t len)
 {
-    char *http_body = strstr(http_msg, "\r\n\r\n");
+    char *_http_msg = malloc((len + 1) * sizeof(char));
+    char *http_body;
+
+    memcpy(_http_msg, http_msg, len);
+    _http_msg[len] = '\0';
+
+    strstr(_http_msg, "\r\n\r\n");
     if (http_body != NULL)
     {
         http_body += 4 * sizeof(char);
@@ -357,26 +362,36 @@ char *get_http_body(char *http_msg)
 }
 
 // Parse a single line of HTTP header and return
-// an "HTTP_HEADER" representing it.
+// an "HTTP_HEADER" representing it. .key and .val
+// must be freed afterwards.
 // 
 // char *line: Header line.
 //
 // Returns the "HTTP_HEADER" variable.
 HTTP_HEADER parse_http_header_line(char *line)
 {
+    char *_line = malloc(strlen(line) * sizeof(char));
     char *saveptr;
     char *val;
     HTTP_HEADER hh;
 
-    val = strstr(line, ":") + sizeof(char);
-    hh.key = split_str(line, ":", &saveptr);
-    hh.val = trim(val);
+    strcpy(_line, line);
+    hh.key = NULL;
+    hh.val = NULL;
+
+    if (strstr(_line, ":") != NULL) 
+    {
+        val = strstr(_line, ":") + sizeof(char);
+        hh.key = split_str(_line, ":", &saveptr);
+        hh.val = trim(val);
+    }
 
     return hh;
 }
 
 // Parse the HTTP "head" of a given "http_msg".
 // Returns an "HTTP_HEAD" to represent it.
+// Considers head is complete with CRLF CRLF.
 // 
 // char *http_msg: HTTP message to be parsed.
 //

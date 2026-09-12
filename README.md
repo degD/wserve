@@ -41,11 +41,21 @@ newline automatically.
 * https://www.man7.org/linux/man-pages/man2/send.2.html
 * https://www.man7.org/linux/man-pages/man7/signal.7.html
 
-## v0.2 
+## v0.2 [COMPLETE]
 
-Simple HTTP headers parser. Test set for the parser.
+Simple HTTP headers parser. Test set for the parser. Code management improvement.
+There is no separate validator, as parser itself validates the HTTP message. 
+Compile the simple test with `make test.parser`. Run test with `./test.parser`.
 
+* https://www.rfc-editor.org/info/rfc7230/#section-3.2
+* https://www.rfc-editor.org/info/rfc7230/#section-3.2.3
+* https://www.rfc-editor.org/info/rfc7230/#section-3.2.6
+* https://linux.die.net/man/3/strtok
 
 ## v0.3 
 
-Server that only responds to HTTP requests.
+Server that accepts, parses and prints the HTTP request. No responding.
+
+## v0.4
+
+Server that accepts and responds with a simple <200> status code to all requests.
