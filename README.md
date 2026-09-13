@@ -60,10 +60,14 @@ connection after receiving the head.
 
 * https://github.com/degD/zeroToHeroCorsProxyInC/blob/main/corsproxy/net.c
 
-## v0.4
+## v0.4 [COMPLETE]
 
 Server that accepts and responds with a simple <200> status code to all requests.
 
+* https://www.rfc-editor.org/info/rfc7230/#section-3.1.2
+
 ## v0.5 
 
-Start line parser. Status line generator.
+Request line parser, parses the request and extracts the method. Struct to
+represent HTTP requests, struct to represent HTTP responses. Body size
+represented with "content-length". Respective tests.

@@ -237,7 +237,7 @@ typedef struct HTTP_HEADER HTTP_HEADER;
 typedef struct HTTP_HEAD HTTP_HEAD;
 
 // Count occurances of "substr" inside "str".
-// 
+//
 // char *str: haystack.
 // char *substr: needle.
 //
@@ -267,7 +267,7 @@ int count_substring(char *str, char *substr)
 }
 
 // Split "str" into sub-strings by "substr". Works very
-// similar to "strtok_r". Except instead of separating 
+// similar to "strtok_r". Except instead of separating
 // "str" by multiple delimiters, it splits by a single,
 // multi-character "substr". Similar to Python str.split().
 // Call with NULL in place of "str" for subsequent calls.
@@ -304,11 +304,11 @@ char *split_str(char *str, char *substr, char **saveptr)
     return str;
 }
 
-// Removes whitespace from both ends of "str" and 
-// returns a new malloc'ed string, without modifying 
-// the original. Because a new string is returned, 
+// Removes whitespace from both ends of "str" and
+// returns a new malloc'ed string, without modifying
+// the original. Because a new string is returned,
 // it is up to programmer to "free()" it.
-// 
+//
 // char *str: String to be trimmed.
 //
 // Returns pointer to the new string.
@@ -334,7 +334,7 @@ char *trim(char *str)
     return tstr;
 }
 
-// HTTP messages have two main parts, the "head" and 
+// HTTP messages have two main parts, the "head" and
 // the "body". They are separated by a "CRLF CRLF"
 // separator. This function returns a pointer to the
 // message body by finding this "CRLF CRLF" and pointing
@@ -367,7 +367,7 @@ char *get_http_body(char *http_msg, size_t len)
 // Parse a single line of HTTP header and return
 // an "HTTP_HEADER" representing it. .key and .val
 // must be freed afterwards.
-// 
+//
 // char *line: Header line.
 //
 // Returns the "HTTP_HEADER" variable.
@@ -382,7 +382,7 @@ HTTP_HEADER parse_http_header_line(char *line)
     hh.key = NULL;
     hh.val = NULL;
 
-    if (strstr(_line, ":") != NULL) 
+    if (strstr(_line, ":") != NULL)
     {
         val = strstr(_line, ":") + sizeof(char);
         hh.key = split_str(_line, ":", &saveptr);
@@ -395,7 +395,7 @@ HTTP_HEADER parse_http_header_line(char *line)
 // Parse the HTTP "head" of a given "http_msg".
 // Returns an "HTTP_HEAD" to represent it.
 // Considers head is complete with CRLF CRLF.
-// 
+//
 // char *http_msg: HTTP message to be parsed.
 //
 // Returns the "HTTP_HEAD" variable.
@@ -455,18 +455,18 @@ void print_http_head(HTTP_HEAD http_head)
 // Returns number of bytes received. Returns "-1" if an error
 // occurs.
 ssize_t http_recv(
-    int newfd, 
-    char **head, 
+    int newfd,
+    char **head,
     char **body,
     size_t *headlen,
-    size_t *bodylen, 
+    size_t *bodylen,
     size_t maxrecvsize
 ) {
     char *req;
     char *p;
     size_t reqsize = 0;
     ssize_t n;
-    
+
     req = malloc(maxrecvsize * sizeof(char));
     n = recv(newfd, req, maxrecvsize, 0);
     while (n > 0)
@@ -479,7 +479,7 @@ ssize_t http_recv(
             *head = req;
             *body = p;
             *headlen = p - req;
-            *bodylen = reqsize - *headlen; 
+            *bodylen = reqsize - *headlen;
             return reqsize;
         }
     }
@@ -488,9 +488,16 @@ ssize_t http_recv(
         printf("wserve: Connection closed by socket %d.\n", newfd);
         return reqsize;
     }
-    
+
     perror("recv");
     return -1;
+}
+
+void http_send_status(int newfd)
+{
+    char response[] = "HTTP/1.1 200 OK\r\n\r\n";
+    size_t len = strlen(response);
+    ssize_t n = send(newfd, response, len, 0);
 }
 
 // HTTP server core loop. Runs indefinitely and
@@ -500,7 +507,7 @@ ssize_t http_recv(
 // int backlog: Max length of connection queue.
 // size_t maxrecvsize: Max number of bytes received at each "recv()".
 void wserve_http(
-    char *port, 
+    char *port,
     int backlog,
     size_t maxrecvsize
 ) {
@@ -525,10 +532,12 @@ void wserve_http(
             HTTP_HEAD hh;
 
             msglen = http_recv(newfd, &http_msg, &http_body, &headlen, &bodylen, maxrecvsize);
-            if (msglen > 0) 
+            if (msglen > 0)
             {
+                http_send_status(newfd);
                 hh = parse_head(http_msg);
-                print_http_head(hh);
+                // print_http_head(hh);
+                puts("Connection closed\n");
             }
 
             free(http_msg);
