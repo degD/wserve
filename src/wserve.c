@@ -237,10 +237,10 @@ typedef struct HTTP_STATUS_LINE HTTP_STATUS_LINE;
 // Struct representing an HTTP header field.
 typedef struct HTTP_HEADER_FIELD HTTP_HEADER_FIELD;
 
-// Struct that represents an HTTP request.
+// Struct representing an HTTP request.
 typedef struct HTTP_REQUEST HTTP_REQUEST;
 
-// Struct that represents an HTTP response.
+// Struct representing an HTTP response.
 typedef struct HTTP_RESPONSE HTTP_RESPONSE;
 
 // Count occurances of "substr" inside "str".
@@ -378,12 +378,12 @@ char *get_http_body(char *http_msg, size_t len)
 // char *line: Header line.
 //
 // Returns the "HTTP_HEADER" variable.
-HTTP_HEADER parse_http_header_line(char *line)
+HTTP_HEADER_FIELD parse_http_header_line(char *line)
 {
     char *_line = malloc(strlen(line) * sizeof(char));
     char *saveptr;
     char *val;
-    HTTP_HEADER hh;
+    HTTP_HEADER_FIELD hh;
 
     strcpy(_line, line);
     hh.key = NULL;
@@ -399,6 +399,30 @@ HTTP_HEADER parse_http_header_line(char *line)
     return hh;
 }
 
+HTTP_REQUEST_LINE parse_http_request_line(char *start_line)
+{
+    HTTP_REQUEST_LINE hrl;
+    char *saveptr;
+
+    hrl.method = split_str(start_line, "\r\n\r\n", &saveptr);
+    hrl.target = split_str(NULL, "\r\n\r\n", &saveptr);
+    hrl.http_version = split_str(NULL, "\r\n\r\n", &saveptr);
+
+    return hrl;
+}
+
+HTTP_STATUS_LINE parse_http_status_line(char *start_line)
+{
+    HTTP_STATUS_LINE hsl;
+    char *saveptr;
+
+    hsl.http_version = split_str(start_line, "\r\n\r\n", &saveptr);
+    hsl.status_code = split_str(NULL, "\r\n\r\n", &saveptr);
+    hsl.response_text = split_str(NULL, "\r\n\r\n", &saveptr);
+
+    return hsl;
+}
+
 // Parse the HTTP "head" of a given "http_msg".
 // Returns an "HTTP_HEAD" to represent it.
 // Considers head is complete with CRLF CRLF.
@@ -406,39 +430,60 @@ HTTP_HEADER parse_http_header_line(char *line)
 // char *http_msg: HTTP message to be parsed.
 //
 // Returns the "HTTP_HEAD" variable.
-HTTP_HEAD parse_head(char *http_msg)
+HTTP_REQUEST parse_http_request(char *http_msg, size_t http_msg_len)
 {
-    HTTP_HEAD http_head;
+    HTTP_REQUEST hr;
+    char *_http_msg;
     char *saveptr;
+    char *start_line;
     char *head;
     char *line;
 
-    head = split_str(http_msg, "\r\n\r\n", &saveptr);
-    http_head.num_of_headers = count_substring(head, "\r\n");
-    http_head.start_line = split_str(head, "\r\n", &saveptr);
-    http_head.headers = malloc(http_head.num_of_headers * sizeof(HTTP_HEADER));
+    _http_msg = malloc(http_msg_len * sizeof(char));
+    memcpy(_http_msg, http_msg, http_msg_len);
+
+    head = split_str(_http_msg, "\r\n\r\n", &saveptr);
+    start_line = split_str(NULL, "\r\n", &saveptr);
+    hr.hrl = parse_http_request_line(start_line);
+    hr.num_of_headers = count_substring(head, "\r\n");
+    hr.headers = malloc(hr.num_of_headers * sizeof(HTTP_HEADER_FIELD));
     line = split_str(NULL, "\r\n", &saveptr);
 
-    for (int i = 0; i < http_head.num_of_headers; i++)
+    for (int i = 0; i < hr.num_of_headers; i++)
     {
-        http_head.headers[i] = parse_http_header_line(line);
+        hr.headers[i] = parse_http_header_line(line);
         line = split_str(NULL, "\r\n", &saveptr);
     }
 
-    return http_head;
+    return hr;
 }
 
-// Print an HTTP_HEAD for visual inspection.
-//
-// HTTP_HEAD http_head: HTTP_HEAD variable.
-void print_http_head(HTTP_HEAD http_head)
+HTTP_RESPONSE parse_http_response(char *http_msg, size_t http_msg_len)
 {
-    printf("\nHTTP HEAD:\n");
-    printf("  %s\n", http_head.start_line);
-    for(int i = 0; i < http_head.num_of_headers; i++)
+    HTTP_RESPONSE hr;
+    char *_http_msg;
+    char *saveptr;
+    char *start_line;
+    char *head;
+    char *line;
+
+    _http_msg = malloc(http_msg_len * sizeof(char));
+    memcpy(_http_msg, http_msg, http_msg_len);
+
+    head = split_str(_http_msg, "\r\n\r\n", &saveptr);
+    start_line = split_str(NULL, "\r\n", &saveptr);
+    hr.hsl = parse_http_status_line(start_line);
+    hr.num_of_headers = count_substring(head, "\r\n");
+    hr.headers = malloc(hr.num_of_headers * sizeof(HTTP_HEADER_FIELD));
+    line = split_str(NULL, "\r\n", &saveptr);
+
+    for (int i = 0; i < hr.num_of_headers; i++)
     {
-        printf("  %s: %s\n", http_head.headers[i].key, http_head.headers[i].val);
+        hr.headers[i] = parse_http_header_line(line);
+        line = split_str(NULL, "\r\n", &saveptr);
     }
+
+    return hr;
 }
 
 
