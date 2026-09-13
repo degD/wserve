@@ -387,8 +387,6 @@ HTTP_HEADER parse_http_header_line(char *line)
         val = strstr(_line, ":") + sizeof(char);
         hh.key = split_str(_line, ":", &saveptr);
         hh.val = trim(val);
-
-        printf("K: %s V: %s\n", hh.key, hh.val);
     }
 
     return hh;
@@ -441,6 +439,42 @@ void print_http_head(HTTP_HEAD http_head)
 // # HTTP SERVER #
 // ###############
 
+ssize_t http_recv(
+    int newfd, 
+    char **head, 
+    char **body,
+    size_t *headlen,
+    size_t *bodylen, 
+    size_t maxrecvsize
+) {
+    char *req;
+    char *p;
+    size_t reqsize = 0;
+    ssize_t n;
+    
+    req = malloc(maxrecvsize * sizeof(char));
+    n = recv(newfd, req, maxrecvsize, 0);
+    while (n > 0)
+    {
+        reqsize += n;
+        req = realloc(req, reqsize + maxrecvsize);
+
+        if ((p = get_http_body(req, reqsize)) != NULL)
+        {
+            *head = req;
+            *body = p;
+            *headlen = p - req;
+            *bodylen = reqsize - *headlen; 
+            return reqsize;
+        }
+    }
+    if (n == 0)
+        printf("wserve: Connection closed by socket %d.\n", newfd);
+    else
+        perror("recv");
+    return -1;
+}
+
 void wserve_http(
     char *port, 
     int backlog,
@@ -459,30 +493,19 @@ void wserve_http(
         if (!fork())
         {
             close(listenfd);
-            char *http_msg = malloc(100 * sizeof(char));
-            char *http_body = NULL;
-            size_t http_msg_size = 0;
-            ssize_t n;
+            char *http_msg;
+            char *http_body;
+            size_t headlen;
+            size_t bodylen;
+            ssize_t msglen;
             HTTP_HEAD hh;
 
-            while (http_body == NULL)
+            msglen = http_recv(newfd, &http_msg, &http_body, &headlen, &bodylen, 1024);
+            if (msglen > 0) 
             {
-                n = _recv(newfd, http_msg + http_msg_size, bufsize);
-                if (n == -1) 
-                {
-                    free(http_msg);
-                    close(newfd);
-                    exit(0);
-                }
-                
-                http_msg_size += n;
-                http_body = get_http_body(http_msg, http_msg_size);
-                if (http_body == NULL) http_msg = realloc(http_msg, (http_msg_size + 1) * sizeof(char));
+                hh = parse_head(http_msg);
+                print_http_head(hh);
             }
-
-            hh = parse_head(http_msg);
-            print_http_head(hh);
-            puts("Closing connection...");
 
             free(http_msg);
             close(newfd);

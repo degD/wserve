@@ -62,6 +62,14 @@ void print_http_head(HTTP_HEAD http_head);
 // # HTTP SERVER #
 // ###############
 
+ssize_t http_recv(
+    int newfd, 
+    char **head, 
+    char **body,
+    size_t *headlen,
+    size_t *bodylen, 
+    size_t maxrecvsize
+);
 void wserve_http(char *port, int backlog, size_t bufsize); 
 
 
