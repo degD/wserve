@@ -11,7 +11,7 @@ parser for this project. Transfer-Encoding, conflicting duplicate
 Content-Length values, malformed requests, oversized headers, and 
 oversized bodies will be automaticly rejected. Response codes will be
 implemented. For each connection, it will serve a single request and 
-response pair and close the connection. 
+response pair and close the connection, just as short-lived connections.
 
 There will be a routing table just like the way Flask works. Each route
 will have a path (/about), method (GET), and a corresponding handler 
@@ -71,3 +71,18 @@ Server that accepts and responds with a simple <200> status code to all requests
 Request line parser, parses the request and extracts the method. Struct to
 represent HTTP requests, struct to represent HTTP responses. Body size
 represented with "content-length". Respective tests.
+
+## v0.6 
+
+Recognition of GET, POST, HEAD requests. Demo responses. Rejection of other
+request methods with suitable status codes.
+
+## v0.7
+
+Automatic rejection cases' implementation. Implementation of suitable
+status codes for probable cases.
+
+## v0.8
+
+Inclusive tests that test most of the features. Test cases with high
+coverage.

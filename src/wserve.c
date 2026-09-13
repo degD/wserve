@@ -403,10 +403,14 @@ HTTP_REQUEST_LINE parse_http_request_line(char *start_line)
 {
     HTTP_REQUEST_LINE hrl;
     char *saveptr;
+    int n = count_substring(start_line, " ");
 
-    hrl.method = split_str(start_line, "\r\n\r\n", &saveptr);
-    hrl.target = split_str(NULL, "\r\n\r\n", &saveptr);
-    hrl.http_version = split_str(NULL, "\r\n\r\n", &saveptr);
+    if (n >= 3)
+    {
+        hrl.method = split_str(start_line, " ", &saveptr);
+        hrl.target = split_str(NULL, " ", &saveptr);
+        hrl.http_version = split_str(NULL, " ", &saveptr);
+    }
 
     return hrl;
 }
@@ -415,10 +419,14 @@ HTTP_STATUS_LINE parse_http_status_line(char *start_line)
 {
     HTTP_STATUS_LINE hsl;
     char *saveptr;
+    int n = count_substring(start_line, " ");
 
-    hsl.http_version = split_str(start_line, "\r\n\r\n", &saveptr);
-    hsl.status_code = split_str(NULL, "\r\n\r\n", &saveptr);
-    hsl.response_text = split_str(NULL, "\r\n\r\n", &saveptr);
+    if (n >= 3)
+    {
+        hsl.http_version = split_str(start_line, " ", &saveptr);
+        hsl.status_code = split_str(NULL, " ", &saveptr);
+        hsl.response_text = split_str(NULL, " ", &saveptr);
+    }
 
     return hsl;
 }
