@@ -228,13 +228,20 @@ void wserve(char *port, int backlog)
 // # HTTP HEADERS PARSER #
 // #######################
 
-// Struct representing an HTTP header.
-typedef struct HTTP_HEADER HTTP_HEADER;
+// Struct that represents a request line.
+typedef struct HTTP_REQUEST_LINE HTTP_REQUEST_LINE;
 
-// Struct representing an HTTP head,
-// which includes the start-line and
-// header fields.
-typedef struct HTTP_HEAD HTTP_HEAD;
+// Struct that represents a status (response) line.
+typedef struct HTTP_STATUS_LINE HTTP_STATUS_LINE;
+
+// Struct representing an HTTP header field.
+typedef struct HTTP_HEADER_FIELD HTTP_HEADER_FIELD;
+
+// Struct that represents an HTTP request.
+typedef struct HTTP_REQUEST HTTP_REQUEST;
+
+// Struct that represents an HTTP response.
+typedef struct HTTP_RESPONSE HTTP_RESPONSE;
 
 // Count occurances of "substr" inside "str".
 //

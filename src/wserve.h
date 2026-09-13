@@ -34,20 +34,46 @@ void wserve(char *port, int backlog);
 // # HTTP HEADERS PARSER #
 // #######################
 
-typedef struct HTTP_HEADER
+typedef struct HTTP_REQUEST_LINE
+{
+    char *method;
+    char *target;
+    char *http_version;
+}
+HTTP_REQUEST_LINE;
+
+typedef struct HTTP_STATUS_LINE
+{
+    char *http_version;
+    char *status_code;
+    char *response_text;
+}
+HTTP_STATUS_LINE;
+
+typedef struct HTTP_HEADER_FIELD
 {
     char *key;
     char *val;
 }
-HTTP_HEADER;
+HTTP_HEADER_FIELD;
 
-typedef struct HTTP_HEAD
+typedef struct HTTP_REQUEST
 {
-    char *start_line;
+    HTTP_REQUEST_LINE hrl;
     int num_of_headers;
-    HTTP_HEADER *headers;
+    HTTP_HEADER_FIELD *headers;
+    char *body;
 }
-HTTP_HEAD;
+HTTP_REQUEST;
+
+typedef struct HTTP_RESPONSE
+{
+    HTTP_STATUS_LINE hrl;
+    int num_of_headers;
+    HTTP_HEADER_FIELD *headers;
+    char *body;
+}
+HTTP_RESPONSE;
 
 int count_substring(char *str, char *substr);
 char *split_str(char *str, char *substr, char **saveptr);
