@@ -4,6 +4,6 @@
 int main(void)
 {
     puts("HTTP WSERVE...");
-    wserve_http("6600", 100, 1);
+    wserve_http("6600", 100, 1024);
     return 0;
 }

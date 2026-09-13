@@ -439,6 +439,21 @@ void print_http_head(HTTP_HEAD http_head)
 // # HTTP SERVER #
 // ###############
 
+// Receive an HTTP message. Receives until "head" is complete.
+// Returns the number of bytes read. Allocates memory for HTTP
+// message. Programmer should free "head" after use. Function
+// writes "body", "bodylen" and "head", "headlen". No validation
+// involved.
+//
+// int newfd: File descriptor of socket.
+// char **head: It will point to the HTTP message (head).
+// char **body: It will point to memory after CRLFCRLF.
+// size_t *headlen: It will hold head memory size.
+// size_t *bodylen: It will hold body memory size.
+// size_t maxrecvsize: Max number of bytes received at each "recv()".
+//
+// Returns number of bytes received. Returns "-1" if an error
+// occurs.
 ssize_t http_recv(
     int newfd, 
     char **head, 
@@ -469,16 +484,25 @@ ssize_t http_recv(
         }
     }
     if (n == 0)
+    {
         printf("wserve: Connection closed by socket %d.\n", newfd);
-    else
-        perror("recv");
+        return reqsize;
+    }
+    
+    perror("recv");
     return -1;
 }
 
+// HTTP server core loop. Runs indefinitely and
+// returns nothing.
+//
+// char *port: Port number that server will use.
+// int backlog: Max length of connection queue.
+// size_t maxrecvsize: Max number of bytes received at each "recv()".
 void wserve_http(
     char *port, 
     int backlog,
-    size_t bufsize
+    size_t maxrecvsize
 ) {
     int listenfd = create_listen_socket(port, backlog);
 
@@ -500,7 +524,7 @@ void wserve_http(
             ssize_t msglen;
             HTTP_HEAD hh;
 
-            msglen = http_recv(newfd, &http_msg, &http_body, &headlen, &bodylen, 1024);
+            msglen = http_recv(newfd, &http_msg, &http_body, &headlen, &bodylen, maxrecvsize);
             if (msglen > 0) 
             {
                 hh = parse_head(http_msg);

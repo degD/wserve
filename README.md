@@ -52,10 +52,18 @@ Compile the simple test with `make test.parser`. Run test with `./test.parser`.
 * https://www.rfc-editor.org/info/rfc7230/#section-3.2.6
 * https://linux.die.net/man/3/strtok
 
-## v0.3 
+## v0.3 [COMPLETE]
 
-Server that accepts, parses and prints the HTTP request. No responding.
+Server that accepts, parses and prints the HTTP request head. No responding.
+The request head is the part until the `CRLFCRLF`.  The server closes the 
+connection after receiving the head. 
+
+* https://github.com/degD/zeroToHeroCorsProxyInC/blob/main/corsproxy/net.c
 
 ## v0.4
 
 Server that accepts and responds with a simple <200> status code to all requests.
+
+## v0.5 
+
+Start line parser. Status line generator.
