@@ -364,7 +364,7 @@ char *get_http_body(char *http_msg, size_t len)
     if (http_body != NULL)
     {
         http_body += 4 * sizeof(char);
-        http_body = http_msg + (_http_msg - http_body);
+        http_body = http_msg + (http_body - _http_msg);
     }
 
     free(_http_msg);
@@ -405,11 +405,15 @@ HTTP_REQUEST_LINE parse_http_request_line(char *start_line)
     char *saveptr;
     int n = count_substring(start_line, " ");
 
-    if (n >= 3)
+    hrl.http_version = NULL;
+    hrl.method = NULL;
+    hrl.target = NULL;
+
+    if (n >= 2)
     {
         hrl.method = split_str(start_line, " ", &saveptr);
         hrl.target = split_str(NULL, " ", &saveptr);
-        hrl.http_version = split_str(NULL, " ", &saveptr);
+        hrl.http_version = saveptr;
     }
 
     return hrl;
@@ -421,11 +425,15 @@ HTTP_STATUS_LINE parse_http_status_line(char *start_line)
     char *saveptr;
     int n = count_substring(start_line, " ");
 
-    if (n >= 3)
+    hsl.http_version = NULL;
+    hsl.response_text = NULL;
+    hsl.status_code = NULL;
+
+    if (n >= 2)
     {
         hsl.http_version = split_str(start_line, " ", &saveptr);
         hsl.status_code = split_str(NULL, " ", &saveptr);
-        hsl.response_text = split_str(NULL, " ", &saveptr);
+        hsl.response_text = saveptr;
     }
 
     return hsl;
@@ -441,19 +449,15 @@ HTTP_STATUS_LINE parse_http_status_line(char *start_line)
 HTTP_REQUEST parse_http_request(char *http_msg, size_t http_msg_len)
 {
     HTTP_REQUEST hr;
-    char *_http_msg;
     char *saveptr;
     char *start_line;
     char *head;
     char *line;
 
-    _http_msg = malloc(http_msg_len * sizeof(char));
-    memcpy(_http_msg, http_msg, http_msg_len);
-
-    head = split_str(_http_msg, "\r\n\r\n", &saveptr);
-    start_line = split_str(NULL, "\r\n", &saveptr);
+    head = split_str(http_msg, "\r\n\r\n", &saveptr);
+    start_line = split_str(head, "\r\n", &saveptr);
     hr.hrl = parse_http_request_line(start_line);
-    hr.num_of_headers = count_substring(head, "\r\n");
+    hr.num_of_headers = count_substring(saveptr, "\r\n") + 1;
     hr.headers = malloc(hr.num_of_headers * sizeof(HTTP_HEADER_FIELD));
     line = split_str(NULL, "\r\n", &saveptr);
 
@@ -479,9 +483,9 @@ HTTP_RESPONSE parse_http_response(char *http_msg, size_t http_msg_len)
     memcpy(_http_msg, http_msg, http_msg_len);
 
     head = split_str(_http_msg, "\r\n\r\n", &saveptr);
-    start_line = split_str(NULL, "\r\n", &saveptr);
+    start_line = split_str(head, "\r\n", &saveptr);
     hr.hsl = parse_http_status_line(start_line);
-    hr.num_of_headers = count_substring(head, "\r\n");
+    hr.num_of_headers = count_substring(saveptr, "\r\n") + 1;
     hr.headers = malloc(hr.num_of_headers * sizeof(HTTP_HEADER_FIELD));
     line = split_str(NULL, "\r\n", &saveptr);
 
@@ -589,15 +593,13 @@ void wserve_http(
             size_t headlen;
             size_t bodylen;
             ssize_t msglen;
-            HTTP_HEAD hh;
+            HTTP_REQUEST hr;
 
             msglen = http_recv(newfd, &http_msg, &http_body, &headlen, &bodylen, maxrecvsize);
             if (msglen > 0)
             {
                 http_send_status(newfd);
-                hh = parse_head(http_msg);
-                // print_http_head(hh);
-                puts("Connection closed\n");
+                hr = parse_http_request(http_msg, msglen);
             }
 
             free(http_msg);
