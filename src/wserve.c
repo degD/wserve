@@ -229,10 +229,10 @@ void wserve(char *port, int backlog)
 // #######################
 
 // All parser functions should be called over a dynamically
-// allocated HTTP message. Parser functions will modify the 
-// HTTP message while parsing it. Parser functions return 
+// allocated HTTP message. Parser functions will modify the
+// HTTP message while parsing it. Parser functions return
 // structs, which have fields that point to the message.
-// Free the HTTP message alongside freeing structs.   
+// Free the HTTP message alongside freeing structs.
 
 // Struct that represents a request line.
 typedef struct HTTP_REQUEST_LINE HTTP_REQUEST_LINE;
@@ -392,7 +392,7 @@ char *get_http_body(char *http_msg, size_t len)
 }
 
 // Parse a single line of HTTP header and return
-// an "HTTP_HEADER_FIELD" representing it. 
+// an "HTTP_HEADER_FIELD" representing it.
 //
 // char *line: Header line.
 //
@@ -417,8 +417,8 @@ HTTP_HEADER_FIELD *parse_http_header_line(char *line)
 }
 
 // Parse the request line (start line of an HTTP request) into
-// a HTTP_REQUEST_LINE struct. 
-// 
+// a HTTP_REQUEST_LINE struct.
+//
 // char *start_line: Request line.
 //
 // Returns HTTP_REQUEST_LINE. Returns NULL if malformed.
@@ -443,8 +443,8 @@ HTTP_REQUEST_LINE *parse_http_request_line(char *start_line)
 }
 
 // Parse the status line (start line of an HTTP response) into
-// a HTTP_STATUS_LINE struct. 
-// 
+// a HTTP_STATUS_LINE struct.
+//
 // char *start_line: Status line.
 //
 // Returns HTTP_STATUS_LINE. Returns NULL if malformed.
@@ -474,7 +474,7 @@ HTTP_STATUS_LINE *parse_http_status_line(char *start_line)
 // char *http_msg: HTTP message to be parsed.
 // size_t http_msg_len: Size of http_msg.
 //
-// Returns the "HTTP_REQUEST" variable. Returns NULL 
+// Returns the "HTTP_REQUEST" variable. Returns NULL
 // if cannot find the CRLFCRLF.
 HTTP_REQUEST *parse_http_request(char *http_msg, size_t http_msg_len)
 {
@@ -512,7 +512,7 @@ HTTP_REQUEST *parse_http_request(char *http_msg, size_t http_msg_len)
 // char *http_msg: HTTP message to be parsed.
 // size_t http_msg_len: Size of http_msg.
 //
-// Returns the "HTTP_RESPONSE" variable. Returns NULL 
+// Returns the "HTTP_RESPONSE" variable. Returns NULL
 // if cannot find the CRLFCRLF.
 HTTP_RESPONSE *parse_http_response(char *http_msg, size_t http_msg_len)
 {
@@ -607,7 +607,7 @@ void http_send_status(int newfd)
 {
     char response[] = "HTTP/1.1 200 OK\r\n\r\n";
     size_t len = strlen(response);
-    ssize_t n = send(newfd, response, len, 0);
+    send(newfd, response, len, 0);
 }
 
 // HTTP server core loop. Runs indefinitely and
@@ -648,6 +648,7 @@ void wserve_http(
                 hr = parse_http_request(http_msg, msglen);
             }
 
+            free(hr);
             free(http_msg);
             close(newfd);
             exit(0);

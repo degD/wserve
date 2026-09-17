@@ -24,7 +24,7 @@ int main(void)
         token = split_str(str, substr, &saveptr);
         assert(strcmp(token, "Quick") == 0);
         token = split_str(NULL, substr, &saveptr);
-        assert(strcmp(token, "fox") == 0);  
+        assert(strcmp(token, "fox") == 0);
         token = split_str(NULL, substr, &saveptr);
         assert(strcmp(token, "jumped") == 0);
 
@@ -46,13 +46,16 @@ int main(void)
         HTTP_HEADER_FIELD *hhf = parse_http_header_line(line);
         assert(strcmp(hhf->key, "CONTENT-TYPE") == 0);
         assert(strcmp(hhf->val, "TEXT/HTML") == 0);
+        free(hhf);
 
         HTTP_HEADER_FIELD *hhf1 = parse_http_header_line(line1);
         assert(hhf1 == NULL);
+        free(hhf1);
 
         HTTP_HEADER_FIELD *hhf2 = parse_http_header_line(line2);
         assert(strcmp(hhf2->key, "CONTENT-TYPE") == 0);
         assert(strcmp(hhf2->val, "::TEXT/HTML") == 0);
+        free(hhf2);
 
         puts("[DONE] Parse header");
     }
@@ -77,10 +80,12 @@ int main(void)
         assert(strcmp(hrl->method, "GET") == 0);
         assert(strcmp(hrl->target, "/") == 0);
         assert(strcmp(hrl->http_version, "HTTP/1.1") == 0);
+        free(hrl);
 
         assert(strcmp(hsl->http_version, "HTTP/1.1") == 0);
         assert(strcmp(hsl->status_code, "301") == 0);
         assert(strcmp(hsl->response_text, "MOVED PERMANENTLY") == 0);
+        free(hsl);
 
         puts("[DONE] Parse HTTP start line");
     }
@@ -101,6 +106,7 @@ int main(void)
         assert(strcmp(hr->headers[2]->key, "ACCEPT") == 0);
         assert(strcmp(hr->headers[2]->val, "*/*") == 0);
 
+        free(hr);
         puts("[DONE] Parse HTTP request");
     }
 
@@ -118,6 +124,7 @@ int main(void)
         assert(strcmp(hr->headers[1]->key, "LOCATION") == 0);
         assert(strcmp(hr->headers[1]->val, "HTTPS://WIKI.ARCHLINUX.ORG/") == 0);
 
+        free(hr);
         puts("[DONE] Parse HTTP response");
     }
 
