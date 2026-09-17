@@ -341,6 +341,10 @@ char *trim(char *str)
     return tstr;
 }
 
+// Convert a string to uppercase in place.
+// Modifies the given string.
+//
+// char *str: String to be converted.
 void toupper_str(char *str)
 {
     int i = 0;
@@ -382,7 +386,7 @@ char *get_http_body(char *http_msg, size_t len)
 }
 
 // Parse a single line of HTTP header and return
-// an "HTTP_HEADER" representing it. .key and .val
+// an "HTTP_HEADER_FIELD" representing it. .key and .val
 // must be freed afterwards.
 //
 // char *line: Header line.
@@ -411,6 +415,12 @@ HTTP_HEADER_FIELD parse_http_header_line(char *line)
     return hh;
 }
 
+// Parse the request line (start line of an HTTP request) into
+// a HTTP_REQUEST_LINE struct. 
+// 
+// char *start_line: Request line.
+//
+// Returns HTTP_REQUEST_LINE.
 HTTP_REQUEST_LINE parse_http_request_line(char *start_line)
 {
     HTTP_REQUEST_LINE hrl;
@@ -435,6 +445,12 @@ HTTP_REQUEST_LINE parse_http_request_line(char *start_line)
     return hrl;
 }
 
+// Parse the status line (start line of an HTTP response) into
+// a HTTP_STATUS_LINE struct. 
+// 
+// char *start_line: Status line.
+//
+// Returns HTTP_STATUS_LINE.
 HTTP_STATUS_LINE parse_http_status_line(char *start_line)
 {
     HTTP_STATUS_LINE hsl;
@@ -459,13 +475,13 @@ HTTP_STATUS_LINE parse_http_status_line(char *start_line)
     return hsl;
 }
 
-// Parse the HTTP "head" of a given "http_msg".
-// Returns an "HTTP_HEAD" to represent it.
-// Considers head is complete with CRLF CRLF.
+// Parse an HTTP request into an HTTP_REQUEST struct.
+// Assumes "head" is complete with CRLFCRLF.
 //
 // char *http_msg: HTTP message to be parsed.
+// size_t http_msg_len: Size of http_msg.
 //
-// Returns the "HTTP_HEAD" variable.
+// Returns the "HTTP_REQUEST" variable.
 HTTP_REQUEST parse_http_request(char *http_msg, size_t http_msg_len)
 {
     HTTP_REQUEST hr;
@@ -490,6 +506,13 @@ HTTP_REQUEST parse_http_request(char *http_msg, size_t http_msg_len)
     return hr;
 }
 
+// Parse an HTTP response into an HTTP_RESPONSE struct.
+// Assumes "head" is complete with CRLFCRLF.
+//
+// char *http_msg: HTTP message to be parsed.
+// size_t http_msg_len: Size of http_msg.
+//
+// Returns the "HTTP_RESPONSE" variable.
 HTTP_RESPONSE parse_http_response(char *http_msg, size_t http_msg_len)
 {
     HTTP_RESPONSE hr;
