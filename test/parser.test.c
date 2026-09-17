@@ -91,9 +91,10 @@ int main(void)
     }
 
     {
-        char msg[] = "GET / HTTP/1.1\r\nHost: google.com\r\nUser-Agent: curl/8.5.0\r\nAccept: */*\r\n\r\n";
+        char msg[] = "GET / HTTP/1.1\r\nHost: google.com\r\nUser-Agent: curl/8.5.0\r\nAccept: */*\r\n\r\nTheReqBody";
         HTTP_REQUEST *hr = parse_http_request(msg, strlen(msg));
 
+        assert(strcmp(hr->body, "TheReqBody") == 0);
         assert(strcmp(hr->hrl->method, "GET") == 0);
         assert(strcmp(hr->hrl->target, "/") == 0);
         assert(strcmp(hr->hrl->http_version, "HTTP/1.1") == 0);
@@ -111,9 +112,10 @@ int main(void)
     }
 
     {
-        char msg[] = "HTTP/1.1 301 Moved Permanently\r\nServer: nginx\r\nLocation: https://wiki.archlinux.org/\r\n\r\n";
+        char msg[] = "HTTP/1.1 301 Moved Permanently\r\nServer: nginx\r\nLocation: https://wiki.archlinux.org/\r\n\r\nTheReqBody";
         HTTP_RESPONSE *hr = parse_http_response(msg, strlen(msg));
 
+        assert(strcmp(hr->body, "TheReqBody") == 0);
         assert(strcmp(hr->hsl->http_version, "HTTP/1.1") == 0);
         assert(strcmp(hr->hsl->status_code, "301") == 0);
         assert(strcmp(hr->hsl->response_text, "MOVED PERMANENTLY") == 0);
