@@ -341,6 +341,16 @@ char *trim(char *str)
     return tstr;
 }
 
+void toupper_str(char *str)
+{
+    int i = 0;
+    while (str[i] != '\0')
+    {
+        str[i] = toupper(str[i]);
+        i++;
+    }
+}
+
 // HTTP messages have two main parts, the "head" and
 // the "body". They are separated by a "CRLF CRLF"
 // separator. This function returns a pointer to the
@@ -394,6 +404,8 @@ HTTP_HEADER_FIELD parse_http_header_line(char *line)
         val = strstr(_line, ":") + sizeof(char);
         hh.key = split_str(_line, ":", &saveptr);
         hh.val = trim(val);
+        toupper_str(hh.key);
+        toupper_str(hh.val);
     }
 
     return hh;
@@ -414,6 +426,10 @@ HTTP_REQUEST_LINE parse_http_request_line(char *start_line)
         hrl.method = split_str(start_line, " ", &saveptr);
         hrl.target = split_str(NULL, " ", &saveptr);
         hrl.http_version = saveptr;
+
+        toupper_str(hrl.method);
+        toupper_str(hrl.target);
+        toupper_str(hrl.http_version);
     }
 
     return hrl;
@@ -434,6 +450,10 @@ HTTP_STATUS_LINE parse_http_status_line(char *start_line)
         hsl.http_version = split_str(start_line, " ", &saveptr);
         hsl.status_code = split_str(NULL, " ", &saveptr);
         hsl.response_text = saveptr;
+
+        toupper_str(hsl.http_version);
+        toupper_str(hsl.status_code);
+        toupper_str(hsl.response_text);
     }
 
     return hsl;

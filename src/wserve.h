@@ -78,6 +78,7 @@ HTTP_RESPONSE;
 int count_substring(char *str, char *substr);
 char *split_str(char *str, char *substr, char **saveptr);
 char *trim(char *str);
+void toupper_str(char *str);
 char *get_http_body(char *http_msg, size_t len);
 HTTP_HEADER_FIELD parse_http_header_line(char *line);
 HTTP_REQUEST_LINE parse_http_request_line(char *start_line);

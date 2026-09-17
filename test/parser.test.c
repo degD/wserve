@@ -32,21 +32,28 @@ int main(void)
     }
 
     {
+        char str[] = "mixed CASE strING\r\n";
+        toupper_str(str);
+        assert(strcmp(str, "MIXED CASE STRING\r\n") == 0);
+        puts("[DONE] String to uppercase");
+    }
+
+    {
         char line[] = "Content-Type: text/html";
         char line1[] = "Content-Type text/html";
         char line2[] = "Content-Type: ::text/html";
 
         HTTP_HEADER_FIELD hhf = parse_http_header_line(line);
-        assert(strcmp(hhf.key, "Content-Type") == 0);
-        assert(strcmp(hhf.val, "text/html") == 0);
+        assert(strcmp(hhf.key, "CONTENT-TYPE") == 0);
+        assert(strcmp(hhf.val, "TEXT/HTML") == 0);
 
         HTTP_HEADER_FIELD hhf1 = parse_http_header_line(line1);
         assert(hhf1.key == NULL);
         assert(hhf1.val == NULL);
 
         HTTP_HEADER_FIELD hhf2 = parse_http_header_line(line2);
-        assert(strcmp(hhf2.key, "Content-Type") == 0);
-        assert(strcmp(hhf2.val, "::text/html") == 0);
+        assert(strcmp(hhf2.key, "CONTENT-TYPE") == 0);
+        assert(strcmp(hhf2.val, "::TEXT/HTML") == 0);
 
         puts("[DONE] Parse header");
     }
@@ -74,7 +81,7 @@ int main(void)
 
         assert(strcmp(hsl.http_version, "HTTP/1.1") == 0);
         assert(strcmp(hsl.status_code, "301") == 0);
-        assert(strcmp(hsl.response_text, "Moved Permanently") == 0);
+        assert(strcmp(hsl.response_text, "MOVED PERMANENTLY") == 0);
 
         puts("[DONE] Parse HTTP start line");
     }
@@ -88,11 +95,11 @@ int main(void)
         assert(strcmp(hr.hrl.http_version, "HTTP/1.1") == 0);
 
         assert(hr.num_of_headers == 3);
-        assert(strcmp(hr.headers[0].key, "Host") == 0);
-        assert(strcmp(hr.headers[0].val, "google.com") == 0);
-        assert(strcmp(hr.headers[1].key, "User-Agent") == 0);
-        assert(strcmp(hr.headers[1].val, "curl/8.5.0") == 0);
-        assert(strcmp(hr.headers[2].key, "Accept") == 0);
+        assert(strcmp(hr.headers[0].key, "HOST") == 0);
+        assert(strcmp(hr.headers[0].val, "GOOGLE.COM") == 0);
+        assert(strcmp(hr.headers[1].key, "USER-AGENT") == 0);
+        assert(strcmp(hr.headers[1].val, "CURL/8.5.0") == 0);
+        assert(strcmp(hr.headers[2].key, "ACCEPT") == 0);
         assert(strcmp(hr.headers[2].val, "*/*") == 0);
 
         puts("[DONE] Parse HTTP request");
@@ -104,13 +111,13 @@ int main(void)
 
         assert(strcmp(hr.hsl.http_version, "HTTP/1.1") == 0);
         assert(strcmp(hr.hsl.status_code, "301") == 0);
-        assert(strcmp(hr.hsl.response_text, "Moved Permanently") == 0);
+        assert(strcmp(hr.hsl.response_text, "MOVED PERMANENTLY") == 0);
 
         assert(hr.num_of_headers == 2);
-        assert(strcmp(hr.headers[0].key, "Server") == 0);
-        assert(strcmp(hr.headers[0].val, "nginx") == 0);
-        assert(strcmp(hr.headers[1].key, "Location") == 0);
-        assert(strcmp(hr.headers[1].val, "https://wiki.archlinux.org/") == 0);
+        assert(strcmp(hr.headers[0].key, "SERVER") == 0);
+        assert(strcmp(hr.headers[0].val, "NGINX") == 0);
+        assert(strcmp(hr.headers[1].key, "LOCATION") == 0);
+        assert(strcmp(hr.headers[1].val, "HTTPS://WIKI.ARCHLINUX.ORG/") == 0);
 
         puts("[DONE] Parse HTTP response");
     }
