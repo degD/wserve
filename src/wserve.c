@@ -228,6 +228,12 @@ void wserve(char *port, int backlog)
 // # HTTP HEADERS PARSER #
 // #######################
 
+// All parser functions should be called over a dynamically
+// allocated HTTP message. Parser functions will modify the 
+// HTTP message while parsing it. Parser functions return 
+// structs, which have fields that point to the message.
+// Free the HTTP message alongside freeing structs.   
+
 // Struct that represents a request line.
 typedef struct HTTP_REQUEST_LINE HTTP_REQUEST_LINE;
 
@@ -386,31 +392,26 @@ char *get_http_body(char *http_msg, size_t len)
 }
 
 // Parse a single line of HTTP header and return
-// an "HTTP_HEADER_FIELD" representing it. .key and .val
-// must be freed afterwards.
+// an "HTTP_HEADER_FIELD" representing it. 
 //
 // char *line: Header line.
 //
-// Returns the "HTTP_HEADER" variable.
-HTTP_HEADER_FIELD parse_http_header_line(char *line)
+// Returns the "HTTP_HEADER" variable. Returns NULL
+// if malformed.
+HTTP_HEADER_FIELD *parse_http_header_line(char *line)
 {
-    char *_line = malloc(strlen(line) * sizeof(char));
     char *saveptr;
     char *val;
-    HTTP_HEADER_FIELD hh;
+    HTTP_HEADER_FIELD *hh;
 
-    strcpy(_line, line);
-    hh.key = NULL;
-    hh.val = NULL;
+    if (strstr(line, ":") == NULL) return NULL;
 
-    if (strstr(_line, ":") != NULL)
-    {
-        val = strstr(_line, ":") + sizeof(char);
-        hh.key = split_str(_line, ":", &saveptr);
-        hh.val = trim(val);
-        toupper_str(hh.key);
-        toupper_str(hh.val);
-    }
+    hh = malloc(sizeof(HTTP_HEADER_FIELD));
+    val = strstr(line, ":") + sizeof(char);
+    hh->key = split_str(line, ":", &saveptr);
+    hh->val = trim(val);
+    toupper_str(hh->key);
+    toupper_str(hh->val);
 
     return hh;
 }
@@ -420,27 +421,23 @@ HTTP_HEADER_FIELD parse_http_header_line(char *line)
 // 
 // char *start_line: Request line.
 //
-// Returns HTTP_REQUEST_LINE.
-HTTP_REQUEST_LINE parse_http_request_line(char *start_line)
+// Returns HTTP_REQUEST_LINE. Returns NULL if malformed.
+HTTP_REQUEST_LINE *parse_http_request_line(char *start_line)
 {
-    HTTP_REQUEST_LINE hrl;
+    HTTP_REQUEST_LINE *hrl;
     char *saveptr;
     int n = count_substring(start_line, " ");
 
-    hrl.http_version = NULL;
-    hrl.method = NULL;
-    hrl.target = NULL;
+    if (n < 2) return NULL;
 
-    if (n >= 2)
-    {
-        hrl.method = split_str(start_line, " ", &saveptr);
-        hrl.target = split_str(NULL, " ", &saveptr);
-        hrl.http_version = saveptr;
+    hrl = malloc(sizeof(HTTP_REQUEST_LINE));
+    hrl->method = split_str(start_line, " ", &saveptr);
+    hrl->target = split_str(NULL, " ", &saveptr);
+    hrl->http_version = saveptr;
 
-        toupper_str(hrl.method);
-        toupper_str(hrl.target);
-        toupper_str(hrl.http_version);
-    }
+    toupper_str(hrl->method);
+    toupper_str(hrl->target);
+    toupper_str(hrl->http_version);
 
     return hrl;
 }
@@ -450,27 +447,23 @@ HTTP_REQUEST_LINE parse_http_request_line(char *start_line)
 // 
 // char *start_line: Status line.
 //
-// Returns HTTP_STATUS_LINE.
-HTTP_STATUS_LINE parse_http_status_line(char *start_line)
+// Returns HTTP_STATUS_LINE. Returns NULL if malformed.
+HTTP_STATUS_LINE *parse_http_status_line(char *start_line)
 {
-    HTTP_STATUS_LINE hsl;
+    HTTP_STATUS_LINE *hsl;
     char *saveptr;
     int n = count_substring(start_line, " ");
 
-    hsl.http_version = NULL;
-    hsl.response_text = NULL;
-    hsl.status_code = NULL;
+    if (n < 2) return NULL;
 
-    if (n >= 2)
-    {
-        hsl.http_version = split_str(start_line, " ", &saveptr);
-        hsl.status_code = split_str(NULL, " ", &saveptr);
-        hsl.response_text = saveptr;
+    hsl = malloc(sizeof(HTTP_STATUS_LINE));
+    hsl->http_version = split_str(start_line, " ", &saveptr);
+    hsl->status_code = split_str(NULL, " ", &saveptr);
+    hsl->response_text = saveptr;
 
-        toupper_str(hsl.http_version);
-        toupper_str(hsl.status_code);
-        toupper_str(hsl.response_text);
-    }
+    toupper_str(hsl->http_version);
+    toupper_str(hsl->status_code);
+    toupper_str(hsl->response_text);
 
     return hsl;
 }
@@ -481,25 +474,32 @@ HTTP_STATUS_LINE parse_http_status_line(char *start_line)
 // char *http_msg: HTTP message to be parsed.
 // size_t http_msg_len: Size of http_msg.
 //
-// Returns the "HTTP_REQUEST" variable.
-HTTP_REQUEST parse_http_request(char *http_msg, size_t http_msg_len)
+// Returns the "HTTP_REQUEST" variable. Returns NULL 
+// if cannot find the CRLFCRLF.
+HTTP_REQUEST *parse_http_request(char *http_msg, size_t http_msg_len)
 {
-    HTTP_REQUEST hr;
+    HTTP_REQUEST *hr;
     char *saveptr;
     char *start_line;
     char *head;
     char *line;
+    char *body;
 
+    body = get_http_body(http_msg, http_msg_len);
+    if (body == NULL) return NULL;
+
+    hr = malloc(sizeof(HTTP_REQUEST));
     head = split_str(http_msg, "\r\n\r\n", &saveptr);
     start_line = split_str(head, "\r\n", &saveptr);
-    hr.hrl = parse_http_request_line(start_line);
-    hr.num_of_headers = count_substring(saveptr, "\r\n") + 1;
-    hr.headers = malloc(hr.num_of_headers * sizeof(HTTP_HEADER_FIELD));
+    hr->hrl = parse_http_request_line(start_line);
+    hr->num_of_headers = count_substring(saveptr, "\r\n") + 1;
+    hr->headers = malloc(hr->num_of_headers * sizeof(HTTP_HEADER_FIELD));
+    hr->body = body;
     line = split_str(NULL, "\r\n", &saveptr);
 
-    for (int i = 0; i < hr.num_of_headers; i++)
+    for (int i = 0; i < hr->num_of_headers; i++)
     {
-        hr.headers[i] = parse_http_header_line(line);
+        hr->headers[i] = parse_http_header_line(line);
         line = split_str(NULL, "\r\n", &saveptr);
     }
 
@@ -512,29 +512,32 @@ HTTP_REQUEST parse_http_request(char *http_msg, size_t http_msg_len)
 // char *http_msg: HTTP message to be parsed.
 // size_t http_msg_len: Size of http_msg.
 //
-// Returns the "HTTP_RESPONSE" variable.
-HTTP_RESPONSE parse_http_response(char *http_msg, size_t http_msg_len)
+// Returns the "HTTP_RESPONSE" variable. Returns NULL 
+// if cannot find the CRLFCRLF.
+HTTP_RESPONSE *parse_http_response(char *http_msg, size_t http_msg_len)
 {
-    HTTP_RESPONSE hr;
-    char *_http_msg;
+    HTTP_RESPONSE *hr;
     char *saveptr;
     char *start_line;
     char *head;
     char *line;
+    char *body;
 
-    _http_msg = malloc(http_msg_len * sizeof(char));
-    memcpy(_http_msg, http_msg, http_msg_len);
+    body = get_http_body(http_msg, http_msg_len);
+    if (body == NULL) return NULL;
 
-    head = split_str(_http_msg, "\r\n\r\n", &saveptr);
+    hr = malloc(sizeof(HTTP_REQUEST));
+    head = split_str(http_msg, "\r\n\r\n", &saveptr);
     start_line = split_str(head, "\r\n", &saveptr);
-    hr.hsl = parse_http_status_line(start_line);
-    hr.num_of_headers = count_substring(saveptr, "\r\n") + 1;
-    hr.headers = malloc(hr.num_of_headers * sizeof(HTTP_HEADER_FIELD));
+    hr->hsl = parse_http_status_line(start_line);
+    hr->num_of_headers = count_substring(saveptr, "\r\n") + 1;
+    hr->headers = malloc(hr->num_of_headers * sizeof(HTTP_HEADER_FIELD));
+    hr->body = body;
     line = split_str(NULL, "\r\n", &saveptr);
 
-    for (int i = 0; i < hr.num_of_headers; i++)
+    for (int i = 0; i < hr->num_of_headers; i++)
     {
-        hr.headers[i] = parse_http_header_line(line);
+        hr->headers[i] = parse_http_header_line(line);
         line = split_str(NULL, "\r\n", &saveptr);
     }
 
@@ -556,7 +559,7 @@ HTTP_RESPONSE parse_http_response(char *http_msg, size_t http_msg_len)
 // char **head: It will point to the HTTP message (head).
 // char **body: It will point to memory after CRLFCRLF.
 // size_t *headlen: It will hold head memory size.
-// size_t *bodylen: It will hold body memory size.
+// size_t *bodylen: It will hold received body memory size.
 // size_t maxrecvsize: Max number of bytes received at each "recv()".
 //
 // Returns number of bytes received. Returns "-1" if an error
@@ -636,7 +639,7 @@ void wserve_http(
             size_t headlen;
             size_t bodylen;
             ssize_t msglen;
-            HTTP_REQUEST hr;
+            HTTP_REQUEST *hr;
 
             msglen = http_recv(newfd, &http_msg, &http_body, &headlen, &bodylen, maxrecvsize);
             if (msglen > 0)

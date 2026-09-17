@@ -59,18 +59,18 @@ HTTP_HEADER_FIELD;
 
 typedef struct HTTP_REQUEST
 {
-    HTTP_REQUEST_LINE hrl;
+    HTTP_REQUEST_LINE *hrl;
     int num_of_headers;
-    HTTP_HEADER_FIELD *headers;
+    HTTP_HEADER_FIELD **headers;
     char *body;
 }
 HTTP_REQUEST;
 
 typedef struct HTTP_RESPONSE
 {
-    HTTP_STATUS_LINE hsl;
+    HTTP_STATUS_LINE *hsl;
     int num_of_headers;
-    HTTP_HEADER_FIELD *headers;
+    HTTP_HEADER_FIELD **headers;
     char *body;
 }
 HTTP_RESPONSE;
@@ -80,11 +80,11 @@ char *split_str(char *str, char *substr, char **saveptr);
 char *trim(char *str);
 void toupper_str(char *str);
 char *get_http_body(char *http_msg, size_t len);
-HTTP_HEADER_FIELD parse_http_header_line(char *line);
-HTTP_REQUEST_LINE parse_http_request_line(char *start_line);
-HTTP_STATUS_LINE parse_http_status_line(char *start_line);
-HTTP_REQUEST parse_http_request(char *http_msg, size_t http_msg_len);
-HTTP_RESPONSE parse_http_response(char *http_msg, size_t http_msg_len);
+HTTP_HEADER_FIELD *parse_http_header_line(char *line);
+HTTP_REQUEST_LINE *parse_http_request_line(char *start_line);
+HTTP_STATUS_LINE *parse_http_status_line(char *start_line);
+HTTP_REQUEST *parse_http_request(char *http_msg, size_t http_msg_len);
+HTTP_RESPONSE *parse_http_response(char *http_msg, size_t http_msg_len);
 
 
 // ###############
