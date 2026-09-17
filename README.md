@@ -66,11 +66,10 @@ Server that accepts and responds with a simple <200> status code to all requests
 
 * https://www.rfc-editor.org/info/rfc7230/#section-3.1.2
 
-## v0.5 
+## v0.5 [COMPLETE]
 
-Request line parser, parses the request and extracts the method. Struct to
-represent HTTP requests, struct to represent HTTP responses. Body size
-represented with "content-length". Respective tests.
+Request and response parsers. Parsing the request and extracting the method. Struct to
+represent HTTP requests, struct to represent HTTP responses. Respective tests.
 
 ## v0.6 
 
