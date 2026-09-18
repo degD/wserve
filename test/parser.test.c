@@ -94,6 +94,7 @@ int main(void)
         char msg[] = "GET / HTTP/1.1\r\nHost: google.com\r\nUser-Agent: curl/8.5.0\r\nAccept: */*\r\n\r\nTheReqBody";
         HTTP_REQUEST *hr = parse_http_request(msg, strlen(msg));
 
+        assert(hr->bodylen == strlen("TheReqBody"));
         assert(strcmp(hr->body, "TheReqBody") == 0);
         assert(strcmp(hr->hrl->method, "GET") == 0);
         assert(strcmp(hr->hrl->target, "/") == 0);
@@ -115,6 +116,7 @@ int main(void)
         char msg[] = "HTTP/1.1 301 Moved Permanently\r\nServer: nginx\r\nLocation: https://wiki.archlinux.org/\r\n\r\nTheReqBody";
         HTTP_RESPONSE *hr = parse_http_response(msg, strlen(msg));
 
+        assert(hr->bodylen == strlen("TheReqBody"));
         assert(strcmp(hr->body, "TheReqBody") == 0);
         assert(strcmp(hr->hsl->http_version, "HTTP/1.1") == 0);
         assert(strcmp(hr->hsl->status_code, "301") == 0);
@@ -146,12 +148,15 @@ int main(void)
         hr.headers[0]->val = "klm";
         hr.headers[1]->key = "xyz";
         hr.headers[1]->val = "prs";
+        hr.body = "TheResponseBody!";
+        hr.bodylen = 16;
 
         // start line: 17
         // header 1: 10
         // header 2: 10
         // CRLF: 2
-        assert((17 + 10 + 10 + 2) == get_http_response_size(&hr));
+        // body: 16
+        assert((17 + 10 + 10 + 2 + 16) == calc_http_response_size(&hr));
 
         free(hr.headers);
         puts("[DONE] Calculate HTTP response size");
@@ -173,6 +178,8 @@ int main(void)
         hr.headers[0]->val = "klm";
         hr.headers[1]->key = "xyz";
         hr.headers[1]->val = "prs";
+        hr.body = "TheResponseBody!";
+        hr.bodylen = 16;
 
         char *msg;
         char *s = "HTTP/1.1 200 OK\r\nabc: klm\r\nxyz: prs\r\n\r\n";
@@ -182,7 +189,8 @@ int main(void)
         // header 1: 10
         // header 2: 10
         // CRLF: 2
-        assert((17 + 10 + 10 + 2) == n);
+        // body: 16
+        assert((17 + 10 + 10 + 2 + 16) == n);
         assert(strcmp(s, msg));
 
         free(hr.headers);

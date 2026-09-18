@@ -495,6 +495,7 @@ HTTP_REQUEST *parse_http_request(char *http_msg, size_t http_msg_len)
     hr->num_of_headers = count_substring(saveptr, "\r\n") + 1;
     hr->headers = malloc(hr->num_of_headers * sizeof(HTTP_HEADER_FIELD));
     hr->body = body;
+    hr->bodylen = http_msg_len - (body - http_msg);
     line = split_str(NULL, "\r\n", &saveptr);
 
     for (int i = 0; i < hr->num_of_headers; i++)
@@ -533,6 +534,7 @@ HTTP_RESPONSE *parse_http_response(char *http_msg, size_t http_msg_len)
     hr->num_of_headers = count_substring(saveptr, "\r\n") + 1;
     hr->headers = malloc(hr->num_of_headers * sizeof(HTTP_HEADER_FIELD));
     hr->body = body;
+    hr->bodylen = http_msg_len - (body - http_msg);
     line = split_str(NULL, "\r\n", &saveptr);
 
     for (int i = 0; i < hr->num_of_headers; i++)
@@ -544,7 +546,7 @@ HTTP_RESPONSE *parse_http_response(char *http_msg, size_t http_msg_len)
     return hr;
 }
 
-ssize_t get_http_response_size(HTTP_RESPONSE *hr)
+ssize_t calc_http_response_size(HTTP_RESPONSE *hr)
 {
     if (hr == NULL) return -1;
 
@@ -563,6 +565,7 @@ ssize_t get_http_response_size(HTTP_RESPONSE *hr)
     }
 
     // body
+    msglen += hr->bodylen;
     msglen += 2;
 
     return msglen;
@@ -572,7 +575,7 @@ ssize_t build_http_response(HTTP_RESPONSE *hr, char **msg)
 {
     char *p, *src;
     size_t len;
-    ssize_t msglen = get_http_response_size(hr);
+    ssize_t msglen = calc_http_response_size(hr);
     if (msglen < 0) return -1;
 
     *msg = malloc(msglen * sizeof(char));
@@ -590,7 +593,8 @@ ssize_t build_http_response(HTTP_RESPONSE *hr, char **msg)
             hr->headers[i]->val
         ) - 1;
     }
-    sprintf(p, "\r\n\r\n");
+    p += sprintf(p, "\r\n") - 1;
+    memcpy(p, hr->body, hr->bodylen);
 
     return msglen;
 }
