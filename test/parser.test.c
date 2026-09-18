@@ -182,7 +182,7 @@ int main(void)
         hr.bodylen = 16;
 
         char *msg;
-        char *s = "HTTP/1.1 200 OK\r\nabc: klm\r\nxyz: prs\r\n\r\n";
+        char *s = "HTTP/1.1 200 OK\r\nabc: klm\r\nxyz: prs\r\n\r\nTheResponseBody!";
         ssize_t n = build_http_response(&hr, &msg);
 
         // start line: 17
@@ -191,7 +191,7 @@ int main(void)
         // CRLF: 2
         // body: 16
         assert((17 + 10 + 10 + 2 + 16) == n);
-        assert(strcmp(s, msg));
+        assert(strcmp(s, msg) == 0);
 
         free(hr.headers);
         free(msg);

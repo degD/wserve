@@ -74,7 +74,8 @@ represent HTTP requests, struct to represent HTTP responses. Respective tests.
 ## v0.6 
 
 Recognition of GET, POST, HEAD requests. Demo responses. Rejection of other
-request methods with suitable status codes.
+request methods with suitable status codes. Build and run `./wserve`. Visit
+[localhost:6600](http://localhost:6600/) to see the server in action.
 
 ## v0.7
 

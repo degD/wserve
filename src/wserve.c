@@ -585,15 +585,15 @@ ssize_t build_http_response(HTTP_RESPONSE *hr, char **msg)
         hr->hsl->http_version,
         hr->hsl->status_code,
         hr->hsl->response_text
-    ) - 1;
+    );
     for (int i = 0; i < hr->num_of_headers; i++)
     {
         p += sprintf(p, "%s: %s\r\n",
             hr->headers[i]->key,
             hr->headers[i]->val
-        ) - 1;
+        );
     }
-    p += sprintf(p, "\r\n") - 1;
+    p += sprintf(p, "\r\n");
     memcpy(p, hr->body, hr->bodylen);
 
     return msglen;
@@ -704,7 +704,28 @@ void wserve_http(
                 hr = parse_http_request(http_msg, msglen);
 
                 if (strcmp(hr->hrl->method, "GET") == 0)
-                    http_send_status(newfd, 200);
+                {
+                    char body[] = "<h1>Hello world! From `wserve`.</h1>";
+                    HTTP_RESPONSE hres;
+                    HTTP_STATUS_LINE hsl;
+                    HTTP_HEADER_FIELD hhf;
+                    hhf.key = "content-length";
+                    hhf.val = "36";
+                    hsl.http_version = "HTTP/1.1";
+                    hsl.status_code = "200";
+                    hsl.response_text = "OK";
+                    hres.hsl = &hsl;
+                    hres.body = body;
+                    hres.bodylen = 36;
+                    hres.num_of_headers = 1;
+                    hres.headers = malloc(sizeof(HTTP_HEADER_FIELD));
+                    hres.headers[0] = &hhf;
+
+                    char *msg;
+                    size_t n = build_http_response(&hres, &msg);
+                    puts(msg);
+                    send(newfd, msg, n, 0);
+                }
                 else
                     http_send_status(newfd, 400);
             }
