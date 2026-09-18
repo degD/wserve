@@ -603,10 +603,12 @@ ssize_t http_recv(
     return -1;
 }
 
-void http_send_status(int newfd)
+void http_send_status(int newfd, int status_code)
 {
     char response[] = "HTTP/1.1 200 OK\r\n\r\n";
     size_t len = strlen(response);
+
+    sprintf(response, "HTTP/1.1 %d OK\r\n\r\n", status_code);
     send(newfd, response, len, 0);
 }
 
@@ -644,8 +646,12 @@ void wserve_http(
             msglen = http_recv(newfd, &http_msg, &http_body, &headlen, &bodylen, maxrecvsize);
             if (msglen > 0)
             {
-                http_send_status(newfd);
                 hr = parse_http_request(http_msg, msglen);
+
+                if (strcmp(hr->hrl->method, "GET") == 0)
+                    http_send_status(newfd, 200);
+                else
+                    http_send_status(newfd, 400);
             }
 
             free(hr);

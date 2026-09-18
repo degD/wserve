@@ -99,7 +99,7 @@ ssize_t http_recv(
     size_t *bodylen,
     size_t maxrecvsize
 );
-void http_send_status(int newfd);
+void http_send_status(int newfd, int status_code);
 void wserve_http(char *port, int backlog, size_t bufsize);
 
 
