@@ -85,6 +85,8 @@ HTTP_REQUEST_LINE *parse_http_request_line(char *start_line);
 HTTP_STATUS_LINE *parse_http_status_line(char *start_line);
 HTTP_REQUEST *parse_http_request(char *http_msg, size_t http_msg_len);
 HTTP_RESPONSE *parse_http_response(char *http_msg, size_t http_msg_len);
+ssize_t get_http_response_size(HTTP_RESPONSE *hr);
+ssize_t build_http_response(HTTP_RESPONSE *hr, char **msg);
 
 
 // ###############

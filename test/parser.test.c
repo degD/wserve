@@ -130,5 +130,65 @@ int main(void)
         puts("[DONE] Parse HTTP response");
     }
 
+    {
+        HTTP_STATUS_LINE hsl;
+        HTTP_RESPONSE hr;
+        HTTP_HEADER_FIELD hhf0, hhf1;
+        hr.hsl = &hsl;
+        hr.hsl->http_version = "HTTP/1.1";
+        hr.hsl->status_code = "200";
+        hr.hsl->response_text = "OK";
+        hr.num_of_headers = 2;
+        hr.headers = malloc(2 * sizeof(HTTP_HEADER_FIELD));
+        hr.headers[0] = &hhf0;
+        hr.headers[1] = &hhf1;
+        hr.headers[0]->key = "abc";
+        hr.headers[0]->val = "klm";
+        hr.headers[1]->key = "xyz";
+        hr.headers[1]->val = "prs";
+
+        // start line: 17
+        // header 1: 10
+        // header 2: 10
+        // CRLF: 2
+        assert((17 + 10 + 10 + 2) == get_http_response_size(&hr));
+
+        free(hr.headers);
+        puts("[DONE] Calculate HTTP response size");
+    }
+
+    {
+        HTTP_STATUS_LINE hsl;
+        HTTP_RESPONSE hr;
+        HTTP_HEADER_FIELD hhf0, hhf1;
+        hr.hsl = &hsl;
+        hr.hsl->http_version = "HTTP/1.1";
+        hr.hsl->status_code = "200";
+        hr.hsl->response_text = "OK";
+        hr.num_of_headers = 2;
+        hr.headers = malloc(2 * sizeof(HTTP_HEADER_FIELD));
+        hr.headers[0] = &hhf0;
+        hr.headers[1] = &hhf1;
+        hr.headers[0]->key = "abc";
+        hr.headers[0]->val = "klm";
+        hr.headers[1]->key = "xyz";
+        hr.headers[1]->val = "prs";
+
+        char *msg;
+        char *s = "HTTP/1.1 200 OK\r\nabc: klm\r\nxyz: prs\r\n\r\n";
+        ssize_t n = build_http_response(&hr, &msg);
+
+        // start line: 17
+        // header 1: 10
+        // header 2: 10
+        // CRLF: 2
+        assert((17 + 10 + 10 + 2) == n);
+        assert(strcmp(s, msg));
+
+        free(hr.headers);
+        free(msg);
+        puts("[DONE] Build HTTP response");
+    }
+
     return 0;
 }

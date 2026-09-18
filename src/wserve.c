@@ -544,6 +544,57 @@ HTTP_RESPONSE *parse_http_response(char *http_msg, size_t http_msg_len)
     return hr;
 }
 
+ssize_t get_http_response_size(HTTP_RESPONSE *hr)
+{
+    if (hr == NULL) return -1;
+
+    size_t msglen = 0;
+
+    // start line
+    msglen += strlen(hr->hsl->http_version) + 1;
+    msglen += strlen(hr->hsl->status_code) + 1;
+    msglen += strlen(hr->hsl->response_text) + 2;
+
+    // headers
+    for (int i = 0; i < hr->num_of_headers; i++)
+    {
+        msglen += strlen(hr->headers[i]->key) + 2;
+        msglen += strlen(hr->headers[i]->val) + 2;
+    }
+
+    // body
+    msglen += 2;
+
+    return msglen;
+}
+
+ssize_t build_http_response(HTTP_RESPONSE *hr, char **msg)
+{
+    char *p, *src;
+    size_t len;
+    ssize_t msglen = get_http_response_size(hr);
+    if (msglen < 0) return -1;
+
+    *msg = malloc(msglen * sizeof(char));
+    p = *msg;
+
+    p += sprintf(p, "%s %s %s\r\n",
+        hr->hsl->http_version,
+        hr->hsl->status_code,
+        hr->hsl->response_text
+    ) - 1;
+    for (int i = 0; i < hr->num_of_headers; i++)
+    {
+        p += sprintf(p, "%s: %s\r\n",
+            hr->headers[i]->key,
+            hr->headers[i]->val
+        ) - 1;
+    }
+    sprintf(p, "\r\n\r\n");
+
+    return msglen;
+}
+
 
 // ###############
 // # HTTP SERVER #
