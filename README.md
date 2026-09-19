@@ -55,7 +55,7 @@ Compile the simple test with `make test.parser`. Run test with `./test.parser`.
 ## v0.3 [COMPLETE]
 
 Server that accepts, parses and prints the HTTP request head. No responding.
-The request head is the part until the `CRLFCRLF`.  The server closes the 
+The request head is the part until the `CRLFCRLF`. The server closes the 
 connection after receiving the head. 
 
 * https://github.com/degD/zeroToHeroCorsProxyInC/blob/main/corsproxy/net.c
@@ -71,18 +71,54 @@ Server that accepts and responds with a simple <200> status code to all requests
 Request and response parsers. Parsing the request and extracting the method. Struct to
 represent HTTP requests, struct to represent HTTP responses. Respective tests.
 
-## v0.6 
+## v0.6 [COMPLETE]
 
-Recognition of GET, POST, HEAD requests. Demo responses. Rejection of other
+Recognition of GET and HEAD requests. Demo responses. Rejection of other
 request methods with suitable status codes. Build and run `./wserve`. Visit
 [localhost:6600](http://localhost:6600/) to see the server in action.
 
 ## v0.7
 
-Automatic rejection cases' implementation. Implementation of suitable
-status codes for probable cases.
+Static routing from a predefined root folder. Server will respond to GET and HEAD
+requests only, and send a `418 I'm a teapot` status code if tried to access with
+another method. It will send `404 Not found` if route file is not found. Also will
+send `404 Not found` if tried to access a file out of root. GET queries are ignored.
+Only checks method and request target route. Initially, only HTML is supported.
 
 ## v0.8
 
-Inclusive tests that test most of the features. Test cases with high
-coverage.
+Reject empty, absolute, `.`, and `..` path components and malformed percent encodings.
+Prevent symbolic-link escapes with descriptor-based traversal using 
+`openat()` and `O_NOFOLLOW`. Return `404` for missing files and 
+directories. Do not provide directory listings or index-file resolution.
+
+## v0.9
+
+Support a small explicit MIME map: HTML, CSS, JavaScript, JSON, plain text, 
+PNG, JPEG, SVG, and `application/octet-stream`, etc.
+
+## v0.10
+
+Detailed unit tests. Refactor of libraries. E2E testing for static hosting. LLM code
+review. Documentation rewrite. Plan update.
+
+## v0.11
+
+Simple request validations. Transfer-Encoding, conflicting duplicate 
+Content-Length values, malformed requests, oversized headers, and 
+oversized bodies will be automaticly rejected. Methods other than 
+GET, HEAD, POST will get rejected. For POST, a `418 I'm a teapot` 
+response will be sent for now. Implement HTTP version validation
+for rejection of connections as well.
+
+## v0.12
+
+Implement POST. There will be a routing table just like the way Flask works. 
+Each route will have a path (/about), method (GET), and a corresponding handler 
+function. For example, the path (/about) could respond to GET requests 
+and send `about.html`. All will be configurable in C. May require breaking
+in smaller pieces.
+
+## v0.13
+
+Write a documentation. Write a specification of this HTTP/1.1 subset.

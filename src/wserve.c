@@ -586,6 +586,7 @@ ssize_t tostring_http_response(HTTP_RESPONSE *hr, char **msg)
 
 HTTP_RESPONSE *init_http_response(
     char *status_code,
+    char *resp_text,
     char *body, size_t bodylen,
     char **headers, int nheaders
 ) {
@@ -702,7 +703,7 @@ void wserve_http(
         int newfd = accept_connection(listenfd);
         if (newfd == -1) continue;
 
-        printf("Connection to socket %d\n", newfd);
+        printf("Connection to socket %d\n```\n", newfd);
 
         if (!fork())
         {
@@ -723,7 +724,7 @@ void wserve_http(
                 {
                     char *h[] = {"content-length", "36"};
                     HTTP_RESPONSE *hres = init_http_response(
-                        "200",
+                        "200", "OK",
                         "<h1>Hello world! From `wserve`.</h1>",
                         36,
                         h,
@@ -732,8 +733,24 @@ void wserve_http(
 
                     char *msg;
                     size_t n = tostring_http_response(hres, &msg);
-                    puts(msg);
-                    send(newfd, msg, n, 0);
+                    printf("%s```\n\n", msg);
+                    _send(newfd, msg, n);
+                }
+                else if (strcmp(hr->hrl->method, "HEAD") == 0)
+                {
+                    char *h[] = {"content-length", "36"};
+                    HTTP_RESPONSE *hres = init_http_response(
+                        "200", "OK",
+                        NULL,
+                        0,
+                        h,
+                        1
+                    );
+
+                    char *msg;
+                    size_t n = tostring_http_response(hres, &msg);
+                    printf("%s```\n\n", msg);
+                    _send(newfd, msg, n);
                 }
                 else
                     http_send_status(newfd, 400);

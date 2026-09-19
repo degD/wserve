@@ -91,6 +91,7 @@ ssize_t calc_http_response_size(HTTP_RESPONSE *hr);
 ssize_t tostring_http_response(HTTP_RESPONSE *hr, char **msg);
 HTTP_RESPONSE *init_http_response(
     char *status_code,
+    char *resp_text,
     char *body, size_t bodylen,
     char **headers, int nheaders
 );
