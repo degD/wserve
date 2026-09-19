@@ -13,6 +13,7 @@
 #include <sys/wait.h>
 #include <signal.h>
 #include <string.h>
+#include <sys/stat.h>
 
 
 // ########################
@@ -763,4 +764,82 @@ void wserve_http(
         }
         close(newfd);
     }
+}
+
+
+// ##################
+// # STATIC ROUTING #
+// ##################
+
+int is_path(char *path)
+{
+    struct stat s;
+    if( stat(path, &s) == 0 )
+    {
+        if( s.st_mode & S_IFDIR )
+        {
+            return 1; // directory
+        }
+        else if( s.st_mode & S_IFREG )
+        {
+            return 2; // file
+        }
+        else
+        {
+            return 3; // something else
+        }
+    }
+    else
+        return 0; // error
+}
+
+// Trim `/` from the end of a path. From
+// `Downloads/sdcard/` to `Downloads/sdcard`.
+void trim_path(char *path)
+{
+    size_t n = strlen(path);
+    if (path[n-1] == '/') path[n-1] = '\0';
+}
+
+char *read_static_txt_file(char *rootpath, char *target)
+{
+    // root should be a directory
+    if (is_path(rootpath) != 1) return NULL;
+
+    char *path = malloc( sizeof(char) * (strlen(rootpath) + 1 + strlen(target) + 1) );
+    trim_path(rootpath);
+    strcat(path, rootpath);
+    strcat(path, target);
+
+    // target should be a file
+    if (is_path(path) != 2)
+    {
+        free(path);
+        return NULL;
+    }
+
+    int i, c, len = 0;
+    FILE *fp = fopen(path, "r");
+
+    if (fp == NULL)
+    {
+        free(path);
+        return NULL;
+    }
+
+    // get file content length
+    while (fgetc(fp) != EOF) len++;
+    char *buf = malloc((len + 1) * sizeof(char));
+
+    // read content to a buffer
+    i = 0;
+    rewind(fp);
+    while ((c = fgetc(fp)) != EOF)
+    {
+        buf[i] = c;
+        i++;
+    }
+
+    free(path);
+    return buf;
 }

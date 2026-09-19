@@ -85,6 +85,10 @@ another method. It will send `404 Not found` if route file is not found. Also wi
 send `404 Not found` if tried to access a file out of root. GET queries are ignored.
 Only checks method and request target route. Initially, only HTML is supported.
 
+* https://stackoverflow.com/a/146938/19962636
+* https://www.man7.org/linux/man-pages/man2/stat.2.html
+* https://en.cppreference.com/c/io/fopen
+
 ## v0.8
 
 Reject empty, absolute, `.`, and `..` path components and malformed percent encodings.

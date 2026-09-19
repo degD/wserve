@@ -113,4 +113,13 @@ void http_send_status(int newfd, int status_code);
 void wserve_http(char *port, int backlog, size_t bufsize);
 
 
+// ##################
+// # STATIC ROUTING #
+// ##################
+
+int is_path(char *path);
+void trim_path(char *path);
+char *read_static_txt_file(char *rootpath, char *target);
+
+
 #endif
