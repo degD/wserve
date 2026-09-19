@@ -234,21 +234,6 @@ void wserve(char *port, int backlog)
 // structs, which have fields that point to the message.
 // Free the HTTP message alongside freeing structs.
 
-// Struct that represents a request line.
-typedef struct HTTP_REQUEST_LINE HTTP_REQUEST_LINE;
-
-// Struct that represents a status (response) line.
-typedef struct HTTP_STATUS_LINE HTTP_STATUS_LINE;
-
-// Struct representing an HTTP header field.
-typedef struct HTTP_HEADER_FIELD HTTP_HEADER_FIELD;
-
-// Struct representing an HTTP request.
-typedef struct HTTP_REQUEST HTTP_REQUEST;
-
-// Struct representing an HTTP response.
-typedef struct HTTP_RESPONSE HTTP_RESPONSE;
-
 // Count occurances of "substr" inside "str".
 //
 // char *str: haystack.
@@ -571,7 +556,7 @@ ssize_t calc_http_response_size(HTTP_RESPONSE *hr)
     return msglen;
 }
 
-ssize_t build_http_response(HTTP_RESPONSE *hr, char **msg)
+ssize_t tostring_http_response(HTTP_RESPONSE *hr, char **msg)
 {
     char *p, *src;
     size_t len;
@@ -597,6 +582,37 @@ ssize_t build_http_response(HTTP_RESPONSE *hr, char **msg)
     memcpy(p, hr->body, hr->bodylen);
 
     return msglen;
+}
+
+HTTP_RESPONSE *init_http_response(
+    char *status_code,
+    char *body, size_t bodylen,
+    char **headers, int nheaders
+) {
+    HTTP_RESPONSE *hr = malloc(sizeof(HTTP_RESPONSE));
+    HTTP_STATUS_LINE *hsl;
+    HTTP_HEADER_FIELD *p;
+
+    hsl = malloc(sizeof(HTTP_STATUS_LINE));
+    hsl->http_version = "HTTP/1.1";
+    hsl->status_code = status_code;
+    hsl->response_text = "OK";
+    hr->hsl = hsl;
+
+    hr->body = body;
+    hr->bodylen = bodylen;
+
+    hr->num_of_headers = nheaders;
+    hr->headers = malloc(nheaders * sizeof(HTTP_HEADER_FIELD));
+    for (int i = 0; i < nheaders; i++)
+    {
+        p = malloc(sizeof(HTTP_HEADER_FIELD));
+        hr->headers[i] = p;
+        p->key = headers[2*i];
+        p->val = headers[2*i+1];
+    }
+
+    return hr;
 }
 
 
@@ -705,24 +721,17 @@ void wserve_http(
 
                 if (strcmp(hr->hrl->method, "GET") == 0)
                 {
-                    char body[] = "<h1>Hello world! From `wserve`.</h1>";
-                    HTTP_RESPONSE hres;
-                    HTTP_STATUS_LINE hsl;
-                    HTTP_HEADER_FIELD hhf;
-                    hhf.key = "content-length";
-                    hhf.val = "36";
-                    hsl.http_version = "HTTP/1.1";
-                    hsl.status_code = "200";
-                    hsl.response_text = "OK";
-                    hres.hsl = &hsl;
-                    hres.body = body;
-                    hres.bodylen = 36;
-                    hres.num_of_headers = 1;
-                    hres.headers = malloc(sizeof(HTTP_HEADER_FIELD));
-                    hres.headers[0] = &hhf;
+                    char *h[] = {"content-length", "36"};
+                    HTTP_RESPONSE *hres = init_http_response(
+                        "200",
+                        "<h1>Hello world! From `wserve`.</h1>",
+                        36,
+                        h,
+                        1
+                    );
 
                     char *msg;
-                    size_t n = build_http_response(&hres, &msg);
+                    size_t n = tostring_http_response(hres, &msg);
                     puts(msg);
                     send(newfd, msg, n, 0);
                 }

@@ -183,7 +183,7 @@ int main(void)
 
         char *msg;
         char *s = "HTTP/1.1 200 OK\r\nabc: klm\r\nxyz: prs\r\n\r\nTheResponseBody!";
-        ssize_t n = build_http_response(&hr, &msg);
+        ssize_t n = tostring_http_response(&hr, &msg);
 
         // start line: 17
         // header 1: 10
