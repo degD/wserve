@@ -88,6 +88,8 @@ Only checks method and request target route. Initially, only HTML is supported.
 * https://stackoverflow.com/a/146938/19962636
 * https://www.man7.org/linux/man-pages/man2/stat.2.html
 * https://en.cppreference.com/c/io/fopen
+* https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/418
+* https://datatracker.ietf.org/doc/html/rfc2324
 
 ## v0.8
 

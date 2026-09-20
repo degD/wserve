@@ -110,7 +110,8 @@ ssize_t http_recv(
     size_t maxrecvsize
 );
 void http_send_status(int newfd, int status_code);
-void wserve_http(char *port, int backlog, size_t bufsize);
+void wserve_http(char *root, char *port, int backlog, size_t bufsize);
+HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr, char *root);
 
 
 // ##################
@@ -119,7 +120,8 @@ void wserve_http(char *port, int backlog, size_t bufsize);
 
 int is_path(char *path);
 void trim_path(char *path);
-char *read_static_txt_file(char *rootpath, char *target);
+char *concat_path(char *path1, char *path2);
+ssize_t read_static_txt_file(char *root, char *target, char **buf);
 
 
 #endif

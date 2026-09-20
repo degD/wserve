@@ -598,7 +598,7 @@ HTTP_RESPONSE *init_http_response(
     hsl = malloc(sizeof(HTTP_STATUS_LINE));
     hsl->http_version = "HTTP/1.1";
     hsl->status_code = status_code;
-    hsl->response_text = "OK";
+    hsl->response_text = resp_text;
     hr->hsl = hsl;
 
     hr->body = body;
@@ -615,6 +615,25 @@ HTTP_RESPONSE *init_http_response(
     }
 
     return hr;
+}
+
+char **append_to_headers_list(
+    char **headers, int *nheaders,
+    char *key, char *val
+) {
+    int i;
+    char **new_headers;
+
+    *nheaders += 1;
+    new_headers = realloc(headers, *nheaders * sizeof(char*) * 2);
+
+    i = *nheaders - 1;
+    new_headers[2*i] = malloc(strlen(key) * sizeof(char));
+    strcpy(new_headers[2*i], key);
+    new_headers[2*i+1] = malloc(strlen(val) * sizeof(char));
+    strcpy(new_headers[2*i+1], val);
+
+    return new_headers;
 }
 
 
@@ -692,6 +711,7 @@ void http_send_status(int newfd, int status_code)
 // int backlog: Max length of connection queue.
 // size_t maxrecvsize: Max number of bytes received at each "recv()".
 void wserve_http(
+    char *root,
     char *port,
     int backlog,
     size_t maxrecvsize
@@ -711,50 +731,20 @@ void wserve_http(
             close(listenfd);
             char *http_msg;
             char *http_body;
+            char *response_str;
             size_t headlen;
             size_t bodylen;
-            ssize_t msglen;
+            ssize_t msglen, n;
             HTTP_REQUEST *hr;
+            HTTP_RESPONSE *response;
 
             msglen = http_recv(newfd, &http_msg, &http_body, &headlen, &bodylen, maxrecvsize);
             if (msglen > 0)
             {
                 hr = parse_http_request(http_msg, msglen);
-
-                if (strcmp(hr->hrl->method, "GET") == 0)
-                {
-                    char *h[] = {"content-length", "36"};
-                    HTTP_RESPONSE *hres = init_http_response(
-                        "200", "OK",
-                        "<h1>Hello world! From `wserve`.</h1>",
-                        36,
-                        h,
-                        1
-                    );
-
-                    char *msg;
-                    size_t n = tostring_http_response(hres, &msg);
-                    printf("%s```\n\n", msg);
-                    _send(newfd, msg, n);
-                }
-                else if (strcmp(hr->hrl->method, "HEAD") == 0)
-                {
-                    char *h[] = {"content-length", "36"};
-                    HTTP_RESPONSE *hres = init_http_response(
-                        "200", "OK",
-                        NULL,
-                        0,
-                        h,
-                        1
-                    );
-
-                    char *msg;
-                    size_t n = tostring_http_response(hres, &msg);
-                    printf("%s```\n\n", msg);
-                    _send(newfd, msg, n);
-                }
-                else
-                    http_send_status(newfd, 400);
+                response = process_http_requests(hr, root);
+                n = tostring_http_response(response, &response_str);
+                _send(newfd, response_str, n);
             }
 
             free(hr);
@@ -764,6 +754,69 @@ void wserve_http(
         }
         close(newfd);
     }
+}
+
+ssize_t recv_http_body_content_length(
+    int newfd,
+    char *body, size_t bodylen,
+    size_t contentlength
+) {
+    char *p = body + bodylen;
+    ssize_t n;
+
+    n = recv(newfd, p, (contentlength - bodylen), 0);
+    while (n > 0)
+    {
+        p += n;
+        bodylen += n;
+    }
+    if (n == 0)
+    {
+        printf("wserve: Connection closed by socket %d.\n", newfd);
+        return bodylen;
+    }
+
+    perror("recv");
+    return -1;
+}
+
+HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr, char *root)
+{
+    if (hr == NULL) return NULL;
+
+    char **h;
+    char *buf;
+    ssize_t n;
+    HTTP_RESPONSE *response;
+
+    if (strcmp(hr->hrl->method, "GET") == 0)
+    {
+        n = read_static_txt_file(root, hr->hrl->target, &buf);
+        if (n == -1)
+            return init_http_response("404", "Not found", NULL, 0, NULL, 0);
+        else
+        {
+            char val[65];
+            sprintf(val, "%ld", n);
+            h = append_to_headers_list(h, 0, "content-length", val);
+            return init_http_response("200", "OK", buf, n, h, 1);
+        }
+    }
+    else if (strcmp(hr->hrl->method, "HEAD") == 0)
+    {
+        n = read_static_txt_file(root, hr->hrl->target, &buf);
+        if (n == -1)
+            return init_http_response("404", "Not found", NULL, 0, NULL, 0);
+        else
+        {
+            char val[65];
+            sprintf(val, "%ld", n);
+            h = append_to_headers_list(h, 0, "content-length", val);
+            return init_http_response("200", "OK", NULL, 0, h, 1);
+        }
+    }
+    else
+        return init_http_response("418", "418 I'm a teapod", NULL, 0, NULL, 0);
 }
 
 
@@ -801,45 +854,56 @@ void trim_path(char *path)
     if (path[n-1] == '/') path[n-1] = '\0';
 }
 
-char *read_static_txt_file(char *rootpath, char *target)
+char *concat_path(char *path1, char *path2)
 {
-    // root should be a directory
-    if (is_path(rootpath) != 1) return NULL;
+    char *path;
 
-    char *path = malloc( sizeof(char) * (strlen(rootpath) + 1 + strlen(target) + 1) );
-    trim_path(rootpath);
-    strcat(path, rootpath);
-    strcat(path, target);
-
-    // target should be a file
-    if (is_path(path) != 2)
+    if (is_path(path1) == 1)
     {
-        free(path);
-        return NULL;
+        trim_path(path1);
+        path = malloc((strlen(path1) + 1 + strlen(path2) + 1) * sizeof(char));
+        sprintf(path, "%s/%s", path1, path2);
     }
 
+    return path;
+}
+
+ssize_t read_static_txt_file(char *root, char *target, char **buf)
+{
     int i, c, len = 0;
-    FILE *fp = fopen(path, "r");
+    char *p, *path;
+    FILE *fp;
 
-    if (fp == NULL)
+    // root should be a directory
+    if (is_path(target) != 1) return -1;
+    path = concat_path(root, target);
+
+    // look for index.html if target points to directory
+    if (is_path(path) == 1)
     {
-        free(path);
-        return NULL;
+        p = path;
+        path = concat_path(path, "index.html");
+        free(p);
     }
+    // path should be a file
+    if (is_path(path) != 2) return -1;
+
+    fp = fopen(path, "r");
+    if (fp == NULL) return -1;
 
     // get file content length
     while (fgetc(fp) != EOF) len++;
-    char *buf = malloc((len + 1) * sizeof(char));
+    *buf = malloc((len + 1) * sizeof(char));
 
     // read content to a buffer
     i = 0;
     rewind(fp);
     while ((c = fgetc(fp)) != EOF)
     {
-        buf[i] = c;
+        (*buf)[i] = c;
         i++;
     }
+    (*buf)[i] = '\0';
 
-    free(path);
-    return buf;
+    return len;
 }
