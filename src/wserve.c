@@ -421,10 +421,6 @@ HTTP_REQUEST_LINE *parse_http_request_line(char *start_line)
     hrl->target = split_str(NULL, " ", &saveptr);
     hrl->http_version = saveptr;
 
-    toupper_str(hrl->method);
-    toupper_str(hrl->target);
-    toupper_str(hrl->http_version);
-
     return hrl;
 }
 
@@ -446,10 +442,6 @@ HTTP_STATUS_LINE *parse_http_status_line(char *start_line)
     hsl->http_version = split_str(start_line, " ", &saveptr);
     hsl->status_code = split_str(NULL, " ", &saveptr);
     hsl->response_text = saveptr;
-
-    toupper_str(hsl->http_version);
-    toupper_str(hsl->status_code);
-    toupper_str(hsl->response_text);
 
     return hsl;
 }
@@ -784,7 +776,6 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr, char *root)
 {
     if (hr == NULL) return NULL;
 
-    char **h;
     char *buf;
     ssize_t n;
     HTTP_RESPONSE *response;
@@ -796,9 +787,11 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr, char *root)
             return init_http_response("404", "Not found", NULL, 0, NULL, 0);
         else
         {
+            int nh = 0;
+            char **h = NULL;
             char val[65];
             sprintf(val, "%ld", n);
-            h = append_to_headers_list(h, 0, "content-length", val);
+            h = append_to_headers_list(h, &nh, "content-length", val);
             return init_http_response("200", "OK", buf, n, h, 1);
         }
     }
@@ -809,14 +802,16 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr, char *root)
             return init_http_response("404", "Not found", NULL, 0, NULL, 0);
         else
         {
+            int nh = 0;
+            char **h = NULL;
             char val[65];
             sprintf(val, "%ld", n);
-            h = append_to_headers_list(h, 0, "content-length", val);
+            h = append_to_headers_list(h, &nh, "content-length", val);
             return init_http_response("200", "OK", NULL, 0, h, 1);
         }
     }
     else
-        return init_http_response("418", "418 I'm a teapod", NULL, 0, NULL, 0);
+        return init_http_response("418", "I'm a teapod", NULL, 0, NULL, 0);
 }
 
 
@@ -861,8 +856,8 @@ char *concat_path(char *path1, char *path2)
     if (is_path(path1) == 1)
     {
         trim_path(path1);
-        path = malloc((strlen(path1) + 1 + strlen(path2) + 1) * sizeof(char));
-        sprintf(path, "%s/%s", path1, path2);
+        path = malloc((strlen(path1) + strlen(path2) + 1) * sizeof(char));
+        sprintf(path, "%s%s", path1, path2);
     }
 
     return path;
@@ -874,16 +869,23 @@ ssize_t read_static_txt_file(char *root, char *target, char **buf)
     char *p, *path;
     FILE *fp;
 
+    puts(root);
+    puts(target);
+
     // root should be a directory
-    if (is_path(target) != 1) return -1;
+    if (is_path(root) != 1) return -1;
     path = concat_path(root, target);
+
+    puts(path);
 
     // look for index.html if target points to directory
     if (is_path(path) == 1)
     {
+        puts("index");
         p = path;
-        path = concat_path(path, "index.html");
+        path = concat_path(path, "/index.html");
         free(p);
+        puts(path);
     }
     // path should be a file
     if (is_path(path) != 2) return -1;
