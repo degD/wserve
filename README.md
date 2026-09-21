@@ -103,6 +103,12 @@ Static routing path generation hardening. Only support `origin-form`.
 * https://www.rfc-editor.org/rfc/rfc9112.html#section-3.2.1
 * https://stackoverflow.com/a/23242061
 * https://shinglyu.com/web/2025/07/22/why-the-percent-sign-breaks-your-website-and-how-to-fix-it.html
+* https://www.man7.org/linux/man-pages/man2/openat.2.html
+* https://www.man7.org/linux/man-pages/man3/perror.3.html
+* https://linux.die.net/man/2/openat
+* https://linux.die.net/man/3/fdopen
+* https://www.man7.org/linux/man-pages/man2/stat.2.html
+* https://www.man7.org/linux/man-pages/man3/stat.3type.html
 
 ## v0.9
 

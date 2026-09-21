@@ -118,10 +118,8 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr, char *root);
 // # STATIC ROUTING #
 // ##################
 
-int is_path(char *path);
-void trim_path(char *path);
-char *concat_path(char *path1, char *path2);
-ssize_t read_static_file(char *root, char *target, char **buf);
+int validate_target_path(char *target);
+int read_static_file(char *root, char *target, char **buf);
 
 
 #endif

@@ -14,6 +14,7 @@
 #include <signal.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <fcntl.h>
 
 
 // ########################
@@ -834,76 +835,66 @@ int validate_target_path(char *target)
     return 1;
 }
 
-int is_path(char *path)
+int read_static_file(char *root, char *target, char **buf)
 {
+    char c;
+    int i, len;
+    int dirfd, fd;
     struct stat s;
-    if( stat(path, &s) == 0 )
-    {
-        if( s.st_mode & S_IFDIR )
-        {
-            return 1; // directory
-        }
-        else if( s.st_mode & S_IFREG )
-        {
-            return 2; // file
-        }
-        else
-        {
-            return 3; // something else
-        }
-    }
-    else
-        return 0; // error
-}
-
-// Trim `/` from the end of a path. From
-// `Downloads/sdcard/` to `Downloads/sdcard`.
-void trim_path(char *path)
-{
-    size_t n = strlen(path);
-    if (path[n-1] == '/') path[n-1] = '\0';
-}
-
-char *concat_path(char *path1, char *path2)
-{
-    char *path = NULL;
-
-    if (is_path(path1) == 1)
-    {
-        trim_path(path1);
-        path = malloc((strlen(path1) + strlen(path2) + 1) * sizeof(char));
-        sprintf(path, "%s%s", path1, path2);
-    }
-
-    return path;
-}
-
-ssize_t read_static_file(char *root, char *target, char **buf)
-{
-    int i, c, len = 0;
-    char *p, *path;
     FILE *fp;
 
-    // root should be a directory
-    if (is_path(root) != 1) return -1;
-    path = concat_path(root, target);
-
-    // look for index.html if target points to directory
-    if (is_path(path) == 1)
+    // fail if target is NULL, empty, not starting with "/",
+    // or including ".." or "%".
+    if (validate_target_path(target) == 0) 
     {
-        puts("index");
-        p = path;
-        path = concat_path(path, "/index.html");
-        free(p);
-        puts(path);
+        puts("validate: Target path invalid");
+        return -1;
     }
-    // path should be a file
-    if (is_path(path) != 2) return -1;
+    target = &(target[1]);
 
-    fp = fopen(path, "rb");
-    if (fp == NULL) return -1;
+    // fail if root not dir
+    dirfd = open(root, O_DIRECTORY);
+    if (dirfd == -1)
+    {
+        perror("open: root");
+        return -1;
+    }
+
+    // fail if target is symlink
+    fd = openat(dirfd, target, O_NOFOLLOW);
+    if (fd == -1)
+    {
+        perror("open: target");
+        return -1;
+    }
+
+    // if path directory, try opening an "index.html"
+    if (fstat(fd, &s) == 0)
+    {
+        if (s.st_mode == 1) {
+            fd = openat(fd, "index.html", O_NOFOLLOW);
+            if (fd == -1)
+            {
+                perror("open: index");
+                return -1;
+            }
+        }
+    }
+    else 
+    {
+        perror("fstat");
+        return -1;
+    }
+
+    // create a new stream from file descriptor
+    fp = fdopen(fd, "rb");
+    if (fp == NULL) {
+        perror("fdopen");
+        return -1;
+    }
 
     // get file content length
+    len = 0;
     while (fgetc(fp) != EOF) len++;
     *buf = malloc((len + 1) * sizeof(char));
 
