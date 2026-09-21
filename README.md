@@ -111,9 +111,9 @@ relative targets.
 * https://www.man7.org/linux/man-pages/man2/stat.2.html
 * https://www.man7.org/linux/man-pages/man3/stat.3type.html
 
-## v0.9
+## v0.9 [COMPLETE]
 
-Support a small explicit MIME map: HTML, CSS, JavaScript, JSON, plain text, 
+Support common MIME map: HTML, CSS, JavaScript, JSON, plain text, 
 PNG, JPEG, SVG, and `application/octet-stream`, etc.
 
 * https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/MIME_types/Common_types

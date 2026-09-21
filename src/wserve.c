@@ -552,8 +552,7 @@ ssize_t calc_http_response_size(HTTP_RESPONSE *hr)
 
 ssize_t tostring_http_response(HTTP_RESPONSE *hr, char **msg)
 {
-    char *p, *src;
-    size_t len;
+    char *p;
     ssize_t msglen = calc_http_response_size(hr);
     if (msglen < 0) return -1;
 
@@ -777,25 +776,24 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr, char *root)
 {
     if (hr == NULL) return NULL;
 
-    char *buf, *ext;
+    char *buf, *ext, *mime = NULL;
     ssize_t n;
-    HTTP_RESPONSE *response;
 
     if (strcmp(hr->hrl->method, "GET") == 0)
     {
         n = read_static_file(root, hr->hrl->target, &buf, &ext);
-        if (n == -1)
+        mime = mime_type(ext);
+        if (n == -1 || mime == NULL)
             return init_http_response("404", "Not found", NULL, 0, NULL, 0);
         else
         {
             int nh = 0;
             char **h = NULL;
             char val[65];
-            char *p;
 
             sprintf(val, "%ld", n);
             h = append_to_headers_list(h, &nh, "content-length", val);
-            h = append_to_headers_list(h, &nh, "content-type", mime_type(ext));
+            h = append_to_headers_list(h, &nh, "content-type", mime);
 
             return init_http_response("200", "OK", buf, n, h, 2);
         }
@@ -803,7 +801,7 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr, char *root)
     else if (strcmp(hr->hrl->method, "HEAD") == 0)
     {
         n = read_static_file(root, hr->hrl->target, &buf, &ext);
-        if (n == -1)
+        if (n == -1 || mime == NULL)
             return init_http_response("404", "Not found", NULL, 0, NULL, 0);
         else
         {
@@ -813,7 +811,7 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr, char *root)
 
             sprintf(val, "%ld", n);
             h = append_to_headers_list(h, &nh, "content-length", val);
-            h = append_to_headers_list(h, &nh, "content-type", mime_type(ext));
+            h = append_to_headers_list(h, &nh, "content-type", mime);
 
             return init_http_response("200", "OK", NULL, 0, h, 2);
         }
@@ -837,8 +835,8 @@ int validate_target_path(char *target)
         target[0] != '/'                ||
         strstr(target, "..") != NULL    ||
         strstr(target, "./") != NULL    ||
-        strstr(target, "%") != NULL     
-    ) 
+        strstr(target, "%") != NULL
+    )
     return 0;
     return 1;
 }
@@ -853,7 +851,7 @@ int read_static_file(char *root, char *target, char **buf, char **extension)
 
     // fail if target is NULL, empty, not starting with "/",
     // or including "./", ".." or "%".
-    if (validate_target_path(target) == 0) 
+    if (validate_target_path(target) == 0)
     {
         puts("validate: Target path invalid");
         return -1;
@@ -871,9 +869,9 @@ int read_static_file(char *root, char *target, char **buf, char **extension)
 
     // if target is empty (only if target is /)
     // go on dirfd and index.html
-    if (strlen(target) != 0) 
+    if (strlen(target) != 0)
         fd = openat(dirfd, target, O_NOFOLLOW);
-    else 
+    else
         fd = dirfd;
 
     // fail if target is symlink
@@ -900,13 +898,13 @@ int read_static_file(char *root, char *target, char **buf, char **extension)
             ext = malloc((strlen(get_extension(target)) + 1) * sizeof(char));
             strcpy(ext, get_extension(target));
         }
-        else 
+        else
         {
             perror("fstat");
             return -1;
         }
     }
-    else 
+    else
     {
         perror("fstat");
         return -1;
@@ -947,7 +945,8 @@ char *get_extension(char *path)
 
 char *mime_type(char *extension)
 {
-    if (extension == NULL || extension[0] != '.') return NULL;
+    if (extension == NULL) return NULL;
+    else if (extension[0] != '.') return "application/octet-stream";
 
     else if (strcmp(extension, ".aac") == 0) return "audio/aac";
     else if (strcmp(extension, ".abw") == 0) return "application/x-abiword";
