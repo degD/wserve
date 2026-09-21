@@ -77,13 +77,13 @@ Recognition of GET and HEAD requests. Demo responses. Rejection of other
 request methods with suitable status codes. Build and run `./wserve`. Visit
 [localhost:6600](http://localhost:6600/) to see the server in action.
 
-## v0.7
+## v0.7 [COMPLETE]
 
 Static routing from a predefined root folder. Server will respond to GET and HEAD
 requests only, and send a `418 I'm a teapot` status code if tried to access with
-another method. It will send `404 Not found` if route file is not found. Also will
-send `404 Not found` if tried to access a file out of root. GET queries are ignored.
-Only checks method and request target route. Initially, only HTML is supported.
+another method. It will send `404 Not found` if route file is not found. GET queries 
+are ignored. Only checks method and request target route. Initially, only plain text 
+is supported.
 
 * https://stackoverflow.com/a/146938/19962636
 * https://www.man7.org/linux/man-pages/man2/stat.2.html
@@ -97,6 +97,7 @@ Reject empty, absolute, `.`, and `..` path components and malformed percent enco
 Prevent symbolic-link escapes with descriptor-based traversal using 
 `openat()` and `O_NOFOLLOW`. Return `404` for missing files and 
 directories. Do not provide directory listings or index-file resolution.
+Static routing path generation hardening.
 
 ## v0.9
 
