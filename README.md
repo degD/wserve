@@ -124,7 +124,7 @@ PNG, JPEG, SVG, and `application/octet-stream`, etc.
 ## v0.10
 
 Detailed unit tests. Refactor of libraries. E2E testing for static hosting. LLM code
-review. Documentation rewrite. Plan update.
+review. Documentation rewrite. Plan update. Write a specification of this HTTP/1.1 subset.
 
 ## v0.11
 
