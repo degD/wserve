@@ -97,7 +97,10 @@ Reject empty, absolute, `.`, and `..` path components and malformed percent enco
 Prevent symbolic-link escapes with descriptor-based traversal using 
 `openat()` and `O_NOFOLLOW`. Return `404` for missing files and 
 directories. Do not provide directory listings or index-file resolution.
-Static routing path generation hardening.
+Static routing path generation hardening. Only support `origin-form`.
+
+* https://www.rfc-editor.org/rfc/rfc9112.html#name-request-target
+* https://www.rfc-editor.org/rfc/rfc9112.html#section-3.2.1
 
 ## v0.9
 

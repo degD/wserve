@@ -782,7 +782,7 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr, char *root)
 
     if (strcmp(hr->hrl->method, "GET") == 0)
     {
-        n = read_static_txt_file(root, hr->hrl->target, &buf);
+        n = read_static_file(root, hr->hrl->target, &buf);
         if (n == -1)
             return init_http_response("404", "Not found", NULL, 0, NULL, 0);
         else
@@ -797,7 +797,7 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr, char *root)
     }
     else if (strcmp(hr->hrl->method, "HEAD") == 0)
     {
-        n = read_static_txt_file(root, hr->hrl->target, &buf);
+        n = read_static_file(root, hr->hrl->target, &buf);
         if (n == -1)
             return init_http_response("404", "Not found", NULL, 0, NULL, 0);
         else
@@ -851,7 +851,7 @@ void trim_path(char *path)
 
 char *concat_path(char *path1, char *path2)
 {
-    char *path;
+    char *path = NULL;
 
     if (is_path(path1) == 1)
     {
@@ -863,20 +863,15 @@ char *concat_path(char *path1, char *path2)
     return path;
 }
 
-ssize_t read_static_txt_file(char *root, char *target, char **buf)
+ssize_t read_static_file(char *root, char *target, char **buf)
 {
     int i, c, len = 0;
     char *p, *path;
     FILE *fp;
 
-    puts(root);
-    puts(target);
-
     // root should be a directory
     if (is_path(root) != 1) return -1;
     path = concat_path(root, target);
-
-    puts(path);
 
     // look for index.html if target points to directory
     if (is_path(path) == 1)
@@ -890,7 +885,7 @@ ssize_t read_static_txt_file(char *root, char *target, char **buf)
     // path should be a file
     if (is_path(path) != 2) return -1;
 
-    fp = fopen(path, "r");
+    fp = fopen(path, "rb");
     if (fp == NULL) return -1;
 
     // get file content length

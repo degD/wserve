@@ -121,7 +121,7 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr, char *root);
 int is_path(char *path);
 void trim_path(char *path);
 char *concat_path(char *path1, char *path2);
-ssize_t read_static_txt_file(char *root, char *target, char **buf);
+ssize_t read_static_file(char *root, char *target, char **buf);
 
 
 #endif

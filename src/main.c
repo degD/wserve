@@ -5,7 +5,7 @@ int main(void)
 {
     puts("HTTP WSERVE...");
     wserve_http(
-        "./static",
+        "./test/static",
         "6600",
         100,
         1024
