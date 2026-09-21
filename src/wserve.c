@@ -717,7 +717,7 @@ void wserve_http(
         int newfd = accept_connection(listenfd);
         if (newfd == -1) continue;
 
-        printf("Connection to socket %d\n```\n", newfd);
+        printf("Connection to socket %d\n", newfd);
 
         if (!fork())
         {

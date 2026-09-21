@@ -91,13 +91,14 @@ is supported.
 * https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/418
 * https://datatracker.ietf.org/doc/html/rfc2324
 
-## v0.8
+## v0.8 [COMPLETE]
 
 Reject empty, absolute, `.`, and `..` path components and malformed percent encodings.
 Prevent symbolic-link escapes with descriptor-based traversal using 
 `openat()` and `O_NOFOLLOW`. Return `404` for missing files and 
 directories. Do not provide directory listings or index-file resolution.
-Static routing path generation hardening. Only support `origin-form`.
+Static routing path generation hardening. Only support `origin-form` with
+relative targets.
 
 * https://www.rfc-editor.org/rfc/rfc9112.html#name-request-target
 * https://www.rfc-editor.org/rfc/rfc9112.html#section-3.2.1
