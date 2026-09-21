@@ -8,8 +8,8 @@ int main(void)
     {
         char *root = "./test";
         char *target = "/a.txt";
-        char *buf;
-        ssize_t n = read_static_file(root, target, &buf);
+        char *buf, *ext;
+        ssize_t n = read_static_file(root, target, &buf, &ext);
         assert(n == 12);
         assert(strlen(buf) == 12);
         free(buf);

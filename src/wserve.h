@@ -119,7 +119,9 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr, char *root);
 // ##################
 
 int validate_target_path(char *target);
-int read_static_file(char *root, char *target, char **buf);
+int read_static_file(char *root, char *target, char **buf, char **extension);
+char *get_extension(char *path);
+char *mime_type(char *extension);
 
 
 #endif

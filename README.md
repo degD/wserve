@@ -116,6 +116,11 @@ relative targets.
 Support a small explicit MIME map: HTML, CSS, JavaScript, JSON, plain text, 
 PNG, JPEG, SVG, and `application/octet-stream`, etc.
 
+* https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/MIME_types/Common_types
+* https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/MIME_types
+* https://datatracker.ietf.org/doc/html/rfc6838
+* https://www.iana.org/assignments/media-types
+
 ## v0.10
 
 Detailed unit tests. Refactor of libraries. E2E testing for static hosting. LLM code

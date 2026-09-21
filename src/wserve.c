@@ -777,13 +777,13 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr, char *root)
 {
     if (hr == NULL) return NULL;
 
-    char *buf;
+    char *buf, *ext;
     ssize_t n;
     HTTP_RESPONSE *response;
 
     if (strcmp(hr->hrl->method, "GET") == 0)
     {
-        n = read_static_file(root, hr->hrl->target, &buf);
+        n = read_static_file(root, hr->hrl->target, &buf, &ext);
         if (n == -1)
             return init_http_response("404", "Not found", NULL, 0, NULL, 0);
         else
@@ -791,14 +791,18 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr, char *root)
             int nh = 0;
             char **h = NULL;
             char val[65];
+            char *p;
+
             sprintf(val, "%ld", n);
             h = append_to_headers_list(h, &nh, "content-length", val);
-            return init_http_response("200", "OK", buf, n, h, 1);
+            h = append_to_headers_list(h, &nh, "content-type", mime_type(ext));
+
+            return init_http_response("200", "OK", buf, n, h, 2);
         }
     }
     else if (strcmp(hr->hrl->method, "HEAD") == 0)
     {
-        n = read_static_file(root, hr->hrl->target, &buf);
+        n = read_static_file(root, hr->hrl->target, &buf, &ext);
         if (n == -1)
             return init_http_response("404", "Not found", NULL, 0, NULL, 0);
         else
@@ -806,9 +810,12 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr, char *root)
             int nh = 0;
             char **h = NULL;
             char val[65];
+
             sprintf(val, "%ld", n);
             h = append_to_headers_list(h, &nh, "content-length", val);
-            return init_http_response("200", "OK", NULL, 0, h, 1);
+            h = append_to_headers_list(h, &nh, "content-type", mime_type(ext));
+
+            return init_http_response("200", "OK", NULL, 0, h, 2);
         }
     }
     else
@@ -836,9 +843,9 @@ int validate_target_path(char *target)
     return 1;
 }
 
-int read_static_file(char *root, char *target, char **buf)
+int read_static_file(char *root, char *target, char **buf, char **extension)
 {
-    char c;
+    char c, *ext;
     int i, len;
     int dirfd, fd;
     struct stat s;
@@ -852,6 +859,7 @@ int read_static_file(char *root, char *target, char **buf)
         return -1;
     }
     target = &(target[1]);
+    puts(target);
 
     // fail if root not dir
     dirfd = open(root, O_DIRECTORY);
@@ -861,8 +869,14 @@ int read_static_file(char *root, char *target, char **buf)
         return -1;
     }
 
+    // if target is empty (only if target is /)
+    // go on dirfd and index.html
+    if (strlen(target) != 0) 
+        fd = openat(dirfd, target, O_NOFOLLOW);
+    else 
+        fd = dirfd;
+
     // fail if target is symlink
-    fd = openat(dirfd, target, O_NOFOLLOW);
     if (fd == -1)
     {
         perror("open: target");
@@ -872,13 +886,24 @@ int read_static_file(char *root, char *target, char **buf)
     // if path directory, try opening an "index.html"
     if (fstat(fd, &s) == 0)
     {
-        if (s.st_mode == 1) {
+        if (s.st_mode & S_IFDIR) {
             fd = openat(fd, "index.html", O_NOFOLLOW);
             if (fd == -1)
             {
                 perror("open: index");
                 return -1;
             }
+            ext = malloc((strlen(".html") + 1) * sizeof(char));
+            strcpy(ext, ".html");
+        }
+        else if (s.st_mode & S_IFREG) {
+            ext = malloc((strlen(get_extension(target)) + 1) * sizeof(char));
+            strcpy(ext, get_extension(target));
+        }
+        else 
+        {
+            perror("fstat");
+            return -1;
         }
     }
     else 
@@ -909,5 +934,100 @@ int read_static_file(char *root, char *target, char **buf)
     }
     (*buf)[i] = '\0';
 
+    *extension = ext;
     return len;
+}
+
+char *get_extension(char *path)
+{
+    char *p = strrchr(path, '.');
+    if (p == NULL) return path;
+    return p;
+}
+
+char *mime_type(char *extension)
+{
+    if (extension == NULL || extension[0] != '.') return NULL;
+
+    else if (strcmp(extension, ".aac") == 0) return "audio/aac";
+    else if (strcmp(extension, ".abw") == 0) return "application/x-abiword";
+    else if (strcmp(extension, ".apng") == 0) return "image/apng";
+    else if (strcmp(extension, ".arc") == 0) return "application/x-freearc";
+    else if (strcmp(extension, ".avif") == 0) return "image/avif";
+    else if (strcmp(extension, ".avi") == 0) return "video/x-msvideo";
+    else if (strcmp(extension, ".azw") == 0) return "application/vnd.amazon.ebook";
+    else if (strcmp(extension, ".bin") == 0) return "application/octet-stream";
+    else if (strcmp(extension, ".bmp") == 0) return "image/bmp";
+    else if (strcmp(extension, ".bz") == 0) return "application/x-bzip";
+    else if (strcmp(extension, ".bz2") == 0) return "application/x-bzip2";
+    else if (strcmp(extension, ".cda") == 0) return "application/x-cdf";
+    else if (strcmp(extension, ".csh") == 0) return "application/x-csh";
+    else if (strcmp(extension, ".css") == 0) return "text/css";
+    else if (strcmp(extension, ".csv") == 0) return "text/csv";
+    else if (strcmp(extension, ".doc") == 0) return "application/msword";
+    else if (strcmp(extension, ".docx") == 0) return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    else if (strcmp(extension, ".eot") == 0) return "application/vnd.ms-fontobject";
+    else if (strcmp(extension, ".epub") == 0) return "application/epub+zip";
+    else if (strcmp(extension, ".gz") == 0) return "application/gzip";
+    else if (strcmp(extension, ".gif") == 0) return "image/gif";
+    else if (strcmp(extension, ".htm") == 0) return "text/html";
+    else if (strcmp(extension, ".html") == 0) return "text/html";
+    else if (strcmp(extension, ".ico") == 0) return "image/vnd.microsoft.icon";
+    else if (strcmp(extension, ".ics") == 0) return "text/calendar";
+    else if (strcmp(extension, ".jar") == 0) return "application/java-archive";
+    else if (strcmp(extension, ".jpeg") == 0) return "image/jpeg";
+    else if (strcmp(extension, ".jpg") == 0) return "image/jpeg";
+    else if (strcmp(extension, ".js") == 0) return "text/javascript";
+    else if (strcmp(extension, ".json") == 0) return "application/json";
+    else if (strcmp(extension, ".jsonld") == 0) return "application/ld+json";
+    else if (strcmp(extension, ".md") == 0) return "text/markdown";
+    else if (strcmp(extension, ".mid") == 0) return "audio/midi";
+    else if (strcmp(extension, ".midi") == 0) return "audio/midi";
+    else if (strcmp(extension, ".mjs") == 0) return "text/javascript";
+    else if (strcmp(extension, ".mp3") == 0) return "audio/mpeg";
+    else if (strcmp(extension, ".mp4") == 0) return "video/mp4";
+    else if (strcmp(extension, ".mpeg") == 0) return "video/mpeg";
+    else if (strcmp(extension, ".mpkg") == 0) return "application/vnd.apple.installer+xml";
+    else if (strcmp(extension, ".odp") == 0) return "application/vnd.oasis.opendocument.presentation";
+    else if (strcmp(extension, ".ods") == 0) return "application/vnd.oasis.opendocument.spreadsheet";
+    else if (strcmp(extension, ".odt") == 0) return "application/vnd.oasis.opendocument.text";
+    else if (strcmp(extension, ".oga") == 0) return "audio/ogg";
+    else if (strcmp(extension, ".ogv") == 0) return "video/ogg";
+    else if (strcmp(extension, ".ogx") == 0) return "application/ogg";
+    else if (strcmp(extension, ".opus") == 0) return "audio/ogg";
+    else if (strcmp(extension, ".otf") == 0) return "font/otf";
+    else if (strcmp(extension, ".pdf") == 0) return "application/pdf";
+    else if (strcmp(extension, ".php") == 0) return "application/x-httpd-php";
+    else if (strcmp(extension, ".png") == 0) return "image/png";
+    else if (strcmp(extension, ".ppt") == 0) return "application/vnd.ms-powerpoint";
+    else if (strcmp(extension, ".pptx") == 0) return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+    else if (strcmp(extension, ".rar") == 0) return "application/vnd.rar";
+    else if (strcmp(extension, ".rtf") == 0) return "application/rtf";
+    else if (strcmp(extension, ".sh") == 0) return "application/x-sh";
+    else if (strcmp(extension, ".svg") == 0) return "image/svg+xml";
+    else if (strcmp(extension, ".tar") == 0) return "application/x-tar";
+    else if (strcmp(extension, ".tif") == 0) return "image/tiff";
+    else if (strcmp(extension, ".tiff") == 0) return "image/tiff";
+    else if (strcmp(extension, ".ts") == 0) return "video/mp2t";
+    else if (strcmp(extension, ".ttf") == 0) return "font/ttf";
+    else if (strcmp(extension, ".txt") == 0) return "text/plain";
+    else if (strcmp(extension, ".vsd") == 0) return "application/vnd.visio";
+    else if (strcmp(extension, ".wav") == 0) return "audio/wav";
+    else if (strcmp(extension, ".weba") == 0) return "audio/webm";
+    else if (strcmp(extension, ".webm") == 0) return "video/webm";
+    else if (strcmp(extension, ".webmanifest") == 0) return "application/manifest+json";
+    else if (strcmp(extension, ".webp") == 0) return "image/webp";
+    else if (strcmp(extension, ".woff") == 0) return "font/woff";
+    else if (strcmp(extension, ".woff2") == 0) return "font/woff2";
+    else if (strcmp(extension, ".xhtml") == 0) return "application/xhtml+xml";
+    else if (strcmp(extension, ".xls") == 0) return "application/vnd.ms-excel";
+    else if (strcmp(extension, ".xlsx") == 0) return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    else if (strcmp(extension, ".xml") == 0) return "application/xml";
+    else if (strcmp(extension, ".xul") == 0) return "application/vnd.mozilla.xul+xml";
+    else if (strcmp(extension, ".zip") == 0) return "application/zip";
+    else if (strcmp(extension, ".3gp") == 0) return "video/3gpp";
+    else if (strcmp(extension, ".3g2") == 0) return "video/3gpp2";
+    else if (strcmp(extension, ".7z") == 0) return "application/x-7z-compressed";
+
+    else return "application/octet-stream";
 }
