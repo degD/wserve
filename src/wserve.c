@@ -819,6 +819,21 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr, char *root)
 // # STATIC ROUTING #
 // ##################
 
+int validate_target_path(char *target)
+{
+    // target NULL, empty, not starting with "/",
+    // or including ".." or "%".
+    if (
+        target == NULL                  ||
+        strlen(target) == 0             ||
+        target[0] != '/'                ||
+        strstr(target, "..") != NULL    ||
+        strstr(target, "%") != NULL     
+    ) 
+    return 0;
+    return 1;
+}
+
 int is_path(char *path)
 {
     struct stat s;

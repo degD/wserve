@@ -101,6 +101,8 @@ Static routing path generation hardening. Only support `origin-form`.
 
 * https://www.rfc-editor.org/rfc/rfc9112.html#name-request-target
 * https://www.rfc-editor.org/rfc/rfc9112.html#section-3.2.1
+* https://stackoverflow.com/a/23242061
+* https://shinglyu.com/web/2025/07/22/why-the-percent-sign-breaks-your-website-and-how-to-fix-it.html
 
 ## v0.9
 
