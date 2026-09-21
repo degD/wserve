@@ -823,12 +823,13 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr, char *root)
 int validate_target_path(char *target)
 {
     // target NULL, empty, not starting with "/",
-    // or including ".." or "%".
+    // or including "./", ".." or "%".
     if (
         target == NULL                  ||
         strlen(target) == 0             ||
         target[0] != '/'                ||
         strstr(target, "..") != NULL    ||
+        strstr(target, "./") != NULL    ||
         strstr(target, "%") != NULL     
     ) 
     return 0;
@@ -844,7 +845,7 @@ int read_static_file(char *root, char *target, char **buf)
     FILE *fp;
 
     // fail if target is NULL, empty, not starting with "/",
-    // or including ".." or "%".
+    // or including "./", ".." or "%".
     if (validate_target_path(target) == 0) 
     {
         puts("validate: Target path invalid");
