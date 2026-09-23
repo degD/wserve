@@ -126,6 +126,10 @@ PNG, JPEG, SVG, and `application/octet-stream`, etc.
 Detailed unit tests. Refactor of libraries. E2E testing for static hosting. LLM code
 review. Documentation rewrite. Plan update. Write a specification of this HTTP/1.1 subset.
 
+* https://en.wikipedia.org/wiki/Glibc
+* https://www.man7.org/linux/man-pages/man2/openat2.2.html
+* https://www.man7.org/linux/man-pages/man2/open_how.2type.html
+
 ## v0.11
 
 Simple request validations. Transfer-Encoding, conflicting duplicate 

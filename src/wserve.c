@@ -15,6 +15,9 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <linux/openat2.h>
+#include <sys/syscall.h>
+#include <unistd.h>
 
 
 // ########################
@@ -545,7 +548,6 @@ ssize_t calc_http_response_size(HTTP_RESPONSE *hr)
 
     // body
     msglen += hr->bodylen;
-    msglen += 2;
 
     return msglen;
 }
@@ -620,9 +622,9 @@ char **append_to_headers_list(
     new_headers = realloc(headers, *nheaders * sizeof(char*) * 2);
 
     i = *nheaders - 1;
-    new_headers[2*i] = malloc(strlen(key) * sizeof(char));
+    new_headers[2*i] = malloc((strlen(key)+1) * sizeof(char));
     strcpy(new_headers[2*i], key);
-    new_headers[2*i+1] = malloc(strlen(val) * sizeof(char));
+    new_headers[2*i+1] = malloc((strlen(val)+1) * sizeof(char));
     strcpy(new_headers[2*i+1], val);
 
     return new_headers;
@@ -676,6 +678,8 @@ ssize_t http_recv(
             *bodylen = reqsize - *headlen;
             return reqsize;
         }
+
+        n = recv(newfd, req+reqsize, maxrecvsize, 0);
     }
     if (n == 0)
     {
@@ -734,13 +738,16 @@ void wserve_http(
             if (msglen > 0)
             {
                 hr = parse_http_request(http_msg, msglen);
-                response = process_http_requests(hr, root);
-                n = tostring_http_response(response, &response_str);
-                _send(newfd, response_str, n);
+                if (hr != NULL && hr->hrl != NULL)
+                {
+                    response = process_http_requests(hr, root);
+                    n = tostring_http_response(response, &response_str);
+                    _send(newfd, response_str, n);
+                    free(hr);
+                }
+                free(http_msg);
             }
 
-            free(hr);
-            free(http_msg);
             close(newfd);
             exit(0);
         }
@@ -761,6 +768,7 @@ ssize_t recv_http_body_content_length(
     {
         p += n;
         bodylen += n;
+        n = recv(newfd, p, (contentlength - bodylen), 0);
     }
     if (n == 0)
     {
@@ -774,7 +782,7 @@ ssize_t recv_http_body_content_length(
 
 HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr, char *root)
 {
-    if (hr == NULL) return NULL;
+    if (hr == NULL || hr->hrl == NULL) return NULL;
 
     char *buf, *ext, *mime = NULL;
     ssize_t n;
@@ -801,6 +809,7 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr, char *root)
     else if (strcmp(hr->hrl->method, "HEAD") == 0)
     {
         n = read_static_file(root, hr->hrl->target, &buf, &ext);
+        mime = mime_type(ext);
         if (n == -1 || mime == NULL)
             return init_http_response("404", "Not found", NULL, 0, NULL, 0);
         else
@@ -841,12 +850,19 @@ int validate_target_path(char *target)
     return 1;
 }
 
+long openat2(int dirfd, const char *path, struct open_how *how, size_t size)
+{
+    return syscall(SYS_openat2, dirfd, path, how, size);
+}
+
 int read_static_file(char *root, char *target, char **buf, char **extension)
 {
-    char c, *ext;
+    int c;
+    char *ext;
     int i, len;
     int dirfd, fd;
     struct stat s;
+    struct open_how f;
     FILE *fp;
 
     // fail if target is NULL, empty, not starting with "/",
@@ -857,7 +873,6 @@ int read_static_file(char *root, char *target, char **buf, char **extension)
         return -1;
     }
     target = &(target[1]);
-    puts(target);
 
     // fail if root not dir
     dirfd = open(root, O_DIRECTORY);
@@ -867,14 +882,10 @@ int read_static_file(char *root, char *target, char **buf, char **extension)
         return -1;
     }
 
-    // if target is empty (only if target is /)
-    // go on dirfd and index.html
-    if (strlen(target) != 0)
-        fd = openat(dirfd, target, O_NOFOLLOW);
-    else
-        fd = dirfd;
-
-    // fail if target is symlink
+    // consider root as / and resolve accordingly
+    // do not resolve symlinks in path
+    f.flags = RESOLVE_IN_ROOT | RESOLVE_NO_SYMLINKS;
+    fd = openat2(dirfd, target, &f, sizeof(struct open_how));
     if (fd == -1)
     {
         perror("open: target");
