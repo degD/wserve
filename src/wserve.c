@@ -156,7 +156,7 @@ ssize_t _send(int newfd, void *buf, size_t nbytes)
 
     while(bytes_sent < nbytes) {
         n = send(newfd, p, bytes_left, 0);
-        if (n < 0) break;
+        if (n <= 0) break;
         bytes_sent += n;
         bytes_left -= n;
         p += n;
@@ -402,7 +402,6 @@ HTTP_HEADER_FIELD *parse_http_header_line(char *line)
     hh->key = split_str(line, ":", &saveptr);
     hh->val = trim(val);
     toupper_str(hh->key);
-    toupper_str(hh->val);
 
     return hh;
 }
@@ -462,6 +461,7 @@ HTTP_STATUS_LINE *parse_http_status_line(char *start_line)
 HTTP_REQUEST *parse_http_request(char *http_msg, size_t http_msg_len)
 {
     HTTP_REQUEST *hr;
+    HTTP_HEADER_FIELD *hhf;
     char *saveptr;
     char *start_line;
     char *head;
@@ -483,7 +483,9 @@ HTTP_REQUEST *parse_http_request(char *http_msg, size_t http_msg_len)
 
     for (int i = 0; i < hr->num_of_headers; i++)
     {
-        hr->headers[i] = parse_http_header_line(line);
+        hhf = parse_http_header_line(line);
+        if (hhf == NULL) return NULL;
+        hr->headers[i] = hhf;
         line = split_str(NULL, "\r\n", &saveptr);
     }
 
@@ -527,6 +529,24 @@ HTTP_RESPONSE *parse_http_response(char *http_msg, size_t http_msg_len)
     }
 
     return hr;
+}
+
+void free_http_request(HTTP_REQUEST *hr)
+{
+    free(hr->hrl);
+    for (int i = 0; i < hr->num_of_headers; i++)
+        free(hr->headers[i]);
+    free(hr->headers);
+    free(hr);
+}
+
+void free_http_response(HTTP_RESPONSE *hr)
+{
+    free(hr->hsl);
+    for (int i = 0; i < hr->num_of_headers; i++)
+        free(hr->headers[i]);
+    free(hr->headers);
+    free(hr);
 }
 
 ssize_t calc_http_response_size(HTTP_RESPONSE *hr)
@@ -718,8 +738,8 @@ ssize_t http_recv(
     }
     if (n == 0)
     {
-        printf("wserve: Connection closed by socket %d.\n", newfd);
-        return reqsize;
+        printf("wserve: Connection closed by client before headers completed.\n");
+        return -1;
     }
 
     perror("recv");
@@ -782,7 +802,8 @@ void wserve_http()
                     response = process_http_requests(hr, root);
                     n = tostring_http_response(response, &response_str);
                     _send(newfd, response_str, n);
-                    free(hr);
+                    free_http_response(response);
+                    free_http_request(hr);
                 }
                 free(http_msg);
             }
@@ -898,20 +919,19 @@ int read_static_file(char *root, char *target, char **buf, char **extension)
 {
     int c;
     char *ext;
-    int i, len;
-    int dirfd, fd;
+    long i, len;
+    int dirfd, fd, tmp;
     struct stat s;
     struct open_how f;
     FILE *fp;
 
     // fail if target is NULL, empty, not starting with "/",
     // or including "./", ".." or "%".
-    if (validate_target_path(target) == 0)
+    if (!validate_target_path(target))
     {
         puts("validate: Target path invalid");
         return -1;
     }
-    target = &(target[1]);
 
     // fail if root not dir
     dirfd = open(root, O_DIRECTORY);
@@ -927,6 +947,7 @@ int read_static_file(char *root, char *target, char **buf, char **extension)
     f.mode = 0;
     f.resolve = RESOLVE_IN_ROOT | RESOLVE_NO_SYMLINKS;
     fd = openat2(dirfd, target, &f, sizeof(struct open_how));
+    close(dirfd);
     if (fd == -1)
     {
         perror("open: target");
@@ -936,8 +957,10 @@ int read_static_file(char *root, char *target, char **buf, char **extension)
     // if path directory, try opening an "index.html"
     if (fstat(fd, &s) == 0)
     {
-        if (s.st_mode & S_IFDIR) {
+        if (S_ISDIR(s.st_mode)) {
+            tmp = fd;
             fd = openat(fd, "index.html", O_NOFOLLOW);
+            close(tmp);
             if (fd == -1)
             {
                 perror("open: index");
@@ -946,18 +969,20 @@ int read_static_file(char *root, char *target, char **buf, char **extension)
             ext = malloc((strlen(".html") + 1) * sizeof(char));
             strcpy(ext, ".html");
         }
-        else if (s.st_mode & S_IFREG) {
+        else if (S_ISREG(s.st_mode)) {
             ext = malloc((strlen(get_extension(target)) + 1) * sizeof(char));
             strcpy(ext, get_extension(target));
         }
         else
         {
+            close(fd);
             perror("fstat");
             return -1;
         }
     }
     else
     {
+        close(fd);
         perror("fstat");
         return -1;
     }
@@ -985,6 +1010,8 @@ int read_static_file(char *root, char *target, char **buf, char **extension)
     (*buf)[i] = '\0';
 
     *extension = ext;
+    close(fd);
+    fclose(fp);
     return len;
 }
 
