@@ -101,16 +101,32 @@ HTTP_RESPONSE *init_http_response(
 // # HTTP SERVER #
 // ###############
 
+typedef struct SERVER_SETTINGS
+{
+    char *root;
+    char *port;
+    int backlog;
+    size_t max_recv_size;
+    size_t total_req_size;
+}
+SERVER_SETTINGS;
+
+void init_server_settings(
+    char *root,
+    char *port,
+    int backlog,
+    size_t max_recv_size,
+    size_t total_req_size
+);
 ssize_t http_recv(
     int newfd,
     char **head,
     char **body,
     size_t *headlen,
-    size_t *bodylen,
-    size_t maxrecvsize
+    size_t *bodylen
 );
 void http_send_status(int newfd, int status_code);
-void wserve_http(char *root, char *port, int backlog, size_t bufsize);
+void wserve_http();
 HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr, char *root);
 
 

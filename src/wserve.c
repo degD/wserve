@@ -1,6 +1,7 @@
 
 #include "wserve.h"
 #include <ctype.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -635,6 +636,34 @@ char **append_to_headers_list(
 // # HTTP SERVER #
 // ###############
 
+// shared global variable for server settings
+SERVER_SETTINGS *_settings = NULL;
+
+void init_server_settings(
+    char *root,
+    char *port,
+    int backlog,
+    size_t max_recv_size,
+    size_t total_req_size
+) {
+    _settings = malloc(sizeof(SERVER_SETTINGS));
+    _settings->root = root;
+    _settings->port = port;
+    _settings->backlog = backlog;
+    _settings->max_recv_size = max_recv_size;
+    _settings->total_req_size = total_req_size;
+}
+
+int is_server_settings_set()
+{
+    if (_settings != NULL) return 1;
+    else
+    {
+        puts("settings: Server settings must be initialized");
+        return 0;
+    }
+}
+
 // Receive an HTTP message. Receives until "head" is complete.
 // Returns the number of bytes read. Allocates memory for HTTP
 // message. Programmer should free "head" after use. Function
@@ -655,21 +684,27 @@ ssize_t http_recv(
     char **head,
     char **body,
     size_t *headlen,
-    size_t *bodylen,
-    size_t maxrecvsize
+    size_t *bodylen
 ) {
     char *req;
     char *p;
     size_t reqsize = 0;
+    size_t maxrecvsize;
+    size_t totalreqsize;
     ssize_t n;
+
+    if (!is_server_settings_set()) return -1;
+    maxrecvsize = _settings->max_recv_size;
+    totalreqsize = _settings->total_req_size;
 
     req = malloc(maxrecvsize * sizeof(char));
     n = recv(newfd, req, maxrecvsize, 0);
     while (n > 0)
     {
         reqsize += n;
-        req = realloc(req, reqsize + maxrecvsize);
+        if (reqsize > totalreqsize) return -1;
 
+        req = realloc(req, reqsize + maxrecvsize);
         if ((p = get_http_body(req, reqsize)) != NULL)
         {
             *head = req;
@@ -706,14 +741,18 @@ void http_send_status(int newfd, int status_code)
 // char *port: Port number that server will use.
 // int backlog: Max length of connection queue.
 // size_t maxrecvsize: Max number of bytes received at each "recv()".
-void wserve_http(
-    char *root,
-    char *port,
-    int backlog,
-    size_t maxrecvsize
-) {
-    int listenfd = create_listen_socket(port, backlog);
+void wserve_http()
+{
+    char *root, *port;
+    int backlog;
+    int listenfd;
 
+    if (!is_server_settings_set()) exit(1);
+    root = _settings->root;
+    port = _settings->port;
+    backlog = _settings->backlog;
+
+    listenfd = create_listen_socket(port, backlog);
     install_sigchld_handler();
     while (1)
     {
@@ -734,7 +773,7 @@ void wserve_http(
             HTTP_REQUEST *hr;
             HTTP_RESPONSE *response;
 
-            msglen = http_recv(newfd, &http_msg, &http_body, &headlen, &bodylen, maxrecvsize);
+            msglen = http_recv(newfd, &http_msg, &http_body, &headlen, &bodylen);
             if (msglen > 0)
             {
                 hr = parse_http_request(http_msg, msglen);
@@ -884,7 +923,9 @@ int read_static_file(char *root, char *target, char **buf, char **extension)
 
     // consider root as / and resolve accordingly
     // do not resolve symlinks in path
-    f.flags = RESOLVE_IN_ROOT | RESOLVE_NO_SYMLINKS;
+    f.flags = 0;
+    f.mode = 0;
+    f.resolve = RESOLVE_IN_ROOT | RESOLVE_NO_SYMLINKS;
     fd = openat2(dirfd, target, &f, sizeof(struct open_how));
     if (fd == -1)
     {
