@@ -27,7 +27,6 @@ int create_listen_socket(char *port, int backlog);
 int accept_connection(int listenfd);
 ssize_t _send(int newfd, void *buf, size_t nbytes);
 ssize_t _recv(int newfd, void *buf, size_t nbytes);
-void wserve(char *port, int backlog);
 
 
 // #######################
@@ -125,7 +124,6 @@ ssize_t http_recv(
     size_t *headlen,
     size_t *bodylen
 );
-void http_send_status(int newfd, int status_code);
 void wserve_http();
 HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr, char *root);
 

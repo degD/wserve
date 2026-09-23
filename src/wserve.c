@@ -72,6 +72,7 @@ int create_listen_socket(char *port, int backlog)
     int yes = 1;
     int r;
     struct addrinfo hints, *ai;
+    struct timeval tv;
 
     // Get a socket and bind to it.
     memset(&hints, 0, sizeof(hints));
@@ -90,6 +91,12 @@ int create_listen_socket(char *port, int backlog)
         perror("wserve: socket");
         return -1;
     }
+
+    // timeout after 10 seconds of no operation
+    tv.tv_sec = 10;
+    tv.tv_usec = 0;
+    setsockopt(listenfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    setsockopt(listenfd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
 
     // Enable socket port reuse.
     setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
@@ -195,40 +202,6 @@ ssize_t _recv(int newfd, void *buf, size_t nbytes)
     return n == -1 ? -1 : bytes_recv;
 }
 
-// Server core loop. Runs indefinitely and
-// returns nothing.
-//
-// char *port: Port number that server will use.
-// int backlog: Max length of connection queue.
-void wserve(char *port, int backlog)
-{
-    char request[30];
-    char response[] = "Got it! Hello, world!\n";
-    int listenfd = create_listen_socket(port, backlog);
-
-    install_sigchld_handler();
-    while (1)
-    {
-        int newfd = accept_connection(listenfd);
-        if (newfd == -1) continue;
-
-        if (!fork())
-        {
-            // Child proocess exit but the parent does not
-            // wait. Child turns into a zombie. That is why
-            // the signal handler is required.
-            close(listenfd);
-            _recv(newfd, request, 4);
-            printf("REQUEST: %s", request);
-            _send(newfd, response, strlen(response));
-            printf("RESPONSE: %s", response);
-            close(newfd);
-            exit(0);
-        }
-        close(newfd);
-    }
-}
-
 
 // #######################
 // # HTTP HEADERS PARSER #
@@ -323,8 +296,23 @@ char *trim(char *str)
     int start, end, i;
     int j = 0;
 
+    // is empty string
+    if (strlen(str) == 0)
+    {
+       tstr = malloc(1);
+       tstr[0] = '\0';
+       return tstr;
+    }
+
     i = 0;
     while (i < len && isspace(str[i++]));
+    if (i == len)
+    {
+        // is all whitespace
+        tstr = malloc(1);
+        tstr[0] = '\0';
+        return tstr;
+    }
     start = i - 1;
 
     i = 0;
@@ -475,7 +463,10 @@ HTTP_REQUEST *parse_http_request(char *http_msg, size_t http_msg_len)
     head = split_str(http_msg, "\r\n\r\n", &saveptr);
     start_line = split_str(head, "\r\n", &saveptr);
     hr->hrl = parse_http_request_line(start_line);
-    hr->num_of_headers = count_substring(saveptr, "\r\n") + 1;
+    if (saveptr != NULL)
+        hr->num_of_headers = count_substring(saveptr, "\r\n") + 1;
+    else
+        hr->num_of_headers = 0;
     hr->headers = malloc(hr->num_of_headers * sizeof(HTTP_HEADER_FIELD));
     hr->body = body;
     hr->bodylen = http_msg_len - (body - http_msg);
@@ -516,7 +507,10 @@ HTTP_RESPONSE *parse_http_response(char *http_msg, size_t http_msg_len)
     head = split_str(http_msg, "\r\n\r\n", &saveptr);
     start_line = split_str(head, "\r\n", &saveptr);
     hr->hsl = parse_http_status_line(start_line);
-    hr->num_of_headers = count_substring(saveptr, "\r\n") + 1;
+    if (saveptr != NULL)
+        hr->num_of_headers = count_substring(saveptr, "\r\n") + 1;
+    else
+        hr->num_of_headers = 0;
     hr->headers = malloc(hr->num_of_headers * sizeof(HTTP_HEADER_FIELD));
     hr->body = body;
     hr->bodylen = http_msg_len - (body - http_msg);
@@ -566,6 +560,7 @@ ssize_t calc_http_response_size(HTTP_RESPONSE *hr)
         msglen += strlen(hr->headers[i]->key) + 2;
         msglen += strlen(hr->headers[i]->val) + 2;
     }
+    msglen += 2;
 
     // body
     msglen += hr->bodylen;
@@ -594,7 +589,8 @@ ssize_t tostring_http_response(HTTP_RESPONSE *hr, char **msg)
             hr->headers[i]->val
         );
     }
-    p += sprintf(p, "\r\n");
+    memcpy(p, "\r\n", 2);
+    p += 2;
     memcpy(p, hr->body, hr->bodylen);
 
     return msglen;
@@ -746,15 +742,6 @@ ssize_t http_recv(
     return -1;
 }
 
-void http_send_status(int newfd, int status_code)
-{
-    char response[] = "HTTP/1.1 200 OK\r\n\r\n";
-    size_t len = strlen(response);
-
-    sprintf(response, "HTTP/1.1 %d OK\r\n\r\n", status_code);
-    send(newfd, response, len, 0);
-}
-
 // HTTP server core loop. Runs indefinitely and
 // returns nothing.
 //
@@ -815,6 +802,7 @@ void wserve_http()
     }
 }
 
+// TODO: UPDATE WITH HR
 ssize_t recv_http_body_content_length(
     int newfd,
     char *body, size_t bodylen,
@@ -906,7 +894,7 @@ int validate_target_path(char *target)
         strstr(target, "./") != NULL    ||
         strstr(target, "%") != NULL
     )
-    return 0;
+        return 0;
     return 1;
 }
 
@@ -918,7 +906,7 @@ long openat2(int dirfd, const char *path, struct open_how *how, size_t size)
 int read_static_file(char *root, char *target, char **buf, char **extension)
 {
     int c;
-    char *ext;
+    char *ext = NULL;
     long i, len;
     int dirfd, fd, tmp;
     struct stat s;
@@ -1000,17 +988,16 @@ int read_static_file(char *root, char *target, char **buf, char **extension)
     *buf = malloc((len + 1) * sizeof(char));
 
     // read content to a buffer
-    i = 0;
     rewind(fp);
-    while ((c = fgetc(fp)) != EOF)
+    for (i = 0; i < len; i++)
     {
+        c = fgetc(fp);
         (*buf)[i] = c;
         i++;
     }
     (*buf)[i] = '\0';
 
     *extension = ext;
-    close(fd);
     fclose(fp);
     return len;
 }

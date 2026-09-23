@@ -23,7 +23,7 @@ configurable. Only serve files under project root. Reject empty,
 absolute, `.`, and `..` path components and malformed percent encodings.
 Prevent symbolic-link escapes with descriptor-based traversal using 
 `openat()` and `O_NOFOLLOW`. Return `404` for missing files and 
-directories. Do not provide directory listings or index-file resolution.
+directories. Do not provide directory listings but provide index-file resolution.
 It will initially support a small explicit MIME map: HTML, CSS, 
 JavaScript, JSON, plain text, PNG, JPEG, SVG, and `application/octet-stream`.
 
@@ -129,6 +129,7 @@ review. Documentation rewrite. Plan update. Write a specification of this HTTP/1
 * https://en.wikipedia.org/wiki/Glibc
 * https://www.man7.org/linux/man-pages/man2/openat2.2.html
 * https://www.man7.org/linux/man-pages/man2/open_how.2type.html
+* https://stackoverflow.com/a/4182564/19962636
 
 ## v0.11
 
