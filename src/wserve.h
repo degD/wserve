@@ -23,6 +23,7 @@
 
 void sigchld_handler(int s);
 int install_sigchld_handler(void);
+int set_socket_timeouts(int fd);
 int create_listen_socket(char *port, int backlog);
 int accept_connection(int listenfd);
 ssize_t _send(int newfd, void *buf, size_t nbytes);

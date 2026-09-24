@@ -58,6 +58,19 @@ int install_sigchld_handler(void)
     return 0;
 }
 
+int set_socket_timeouts(int fd)
+{
+    struct timeval tv = { .tv_sec = 10, .tv_usec = 0 };
+
+    if (
+        setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) == -1 ||
+        setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv)) == -1
+    ) {
+        return -1;
+    }
+    return 0;
+}
+
 // Create and return a socket for listening to incoming
 // connection requests. The server uses this socket to
 // Accept incoming connections.
@@ -89,6 +102,7 @@ int create_listen_socket(char *port, int backlog)
     listenfd = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
     if (listenfd == -1) {
         perror("wserve: socket");
+        freeaddrinfo(ai);
         return -1;
     }
 
@@ -106,6 +120,7 @@ int create_listen_socket(char *port, int backlog)
     if (r == -1) {
         close(listenfd);
         perror("source: bind");
+        freeaddrinfo(ai);
         return -1;
     }
 
@@ -221,26 +236,17 @@ ssize_t _recv(int newfd, void *buf, size_t nbytes)
 // Return number of occurances. 0 if none.
 int count_substring(char *str, char *substr)
 {
-    int len_str = strlen(str);
-    int len_substr = strlen(substr);
-    int c = 0;
-    int f;
+    size_t len_str = strlen(str);
+    size_t len_substr = strlen(substr);
+    int count = 0;
 
-    for (int i = len_substr; i < len_str; i++)
+    if (len_substr == 0 || len_substr > len_str) return 0;
+    for (size_t i = 0; i <= len_str - len_substr; i++)
     {
-        f = 1;
-        for (int j = 0; j < len_substr; j++)
-        {
-            if (str[i - len_substr + j] != substr[j])
-            {
-                f = 0;
-                break;
-            }
-        }
-        c += f;
+        if (strncmp(str + i, substr, len_substr) == 0) count++;
     }
 
-    return c;
+    return count;
 }
 
 // Split "str" into sub-strings by "substr". Works very
@@ -291,39 +297,22 @@ char *split_str(char *str, char *substr, char **saveptr)
 // Returns pointer to the new string.
 char *trim(char *str)
 {
-    int len = strlen(str);
-    char *tstr;
-    int start, end, i;
-    int j = 0;
+    size_t start = 0;
+    size_t end = strlen(str);
 
-    // is empty string
-    if (strlen(str) == 0)
-    {
-       tstr = malloc(1);
-       tstr[0] = '\0';
-       return tstr;
-    }
+    while (start < end && isspace((unsigned char)str[start]))
+        start++;
 
-    i = 0;
-    while (i < len && isspace(str[i++]));
-    if (i == len)
-    {
-        // is all whitespace
-        tstr = malloc(1);
-        tstr[0] = '\0';
-        return tstr;
-    }
-    start = i - 1;
+    while (end > start && isspace((unsigned char)str[end - 1]))
+        end--;
 
-    i = 0;
-    while (i < len && isspace(str[len - 1 - (i++)]));
-    end = len - i;
+    char *trimmed = malloc(end - start + 1);
+    if (trimmed == NULL)
+        return NULL;
 
-    tstr = malloc((end - start + 2) * sizeof(char));
-    for (i = start; i <= end; i++) tstr[j++] = str[i];
-    tstr[j] = '\0';
-
-    return tstr;
+    memcpy(trimmed, str + start, end - start);
+    trimmed[end - start] = '\0';
+    return trimmed;
 }
 
 // Convert a string to uppercase in place.
@@ -335,7 +324,7 @@ void toupper_str(char *str)
     int i = 0;
     while (str[i] != '\0')
     {
-        str[i] = toupper(str[i]);
+        str[i] = toupper((unsigned char)str[i]);
         i++;
     }
 }
@@ -353,21 +342,19 @@ void toupper_str(char *str)
 // "CRLF CRLF" not found.
 char *get_http_body(char *http_msg, size_t len)
 {
-    char *_http_msg = malloc((len + 1) * sizeof(char));
-    char *http_body;
-
-    memcpy(_http_msg, http_msg, len);
-    _http_msg[len] = '\0';
-
-    http_body = strstr(_http_msg, "\r\n\r\n");
-    if (http_body != NULL)
+    if (len < 4) return NULL;
+    for (int i = 0; i < len-3; i++)
     {
-        http_body += 4 * sizeof(char);
-        http_body = http_msg + (http_body - _http_msg);
+        if (
+            http_msg[i] == '\r'   &&
+            http_msg[i+1] == '\n' &&
+            http_msg[i+2] == '\r' &&
+            http_msg[i+3] == '\n'
+        ) {
+            return http_msg + i + 4;
+        }
     }
-
-    free(_http_msg);
-    return http_body;
+    return NULL;
 }
 
 // Parse a single line of HTTP header and return
@@ -494,6 +481,7 @@ HTTP_REQUEST *parse_http_request(char *http_msg, size_t http_msg_len)
 HTTP_RESPONSE *parse_http_response(char *http_msg, size_t http_msg_len)
 {
     HTTP_RESPONSE *hr;
+    HTTP_HEADER_FIELD *hhf;
     char *saveptr;
     char *start_line;
     char *head;
@@ -503,7 +491,7 @@ HTTP_RESPONSE *parse_http_response(char *http_msg, size_t http_msg_len)
     body = get_http_body(http_msg, http_msg_len);
     if (body == NULL) return NULL;
 
-    hr = malloc(sizeof(HTTP_REQUEST));
+    hr = malloc(sizeof(HTTP_RESPONSE));
     head = split_str(http_msg, "\r\n\r\n", &saveptr);
     start_line = split_str(head, "\r\n", &saveptr);
     hr->hsl = parse_http_status_line(start_line);
@@ -518,7 +506,9 @@ HTTP_RESPONSE *parse_http_response(char *http_msg, size_t http_msg_len)
 
     for (int i = 0; i < hr->num_of_headers; i++)
     {
-        hr->headers[i] = parse_http_header_line(line);
+        hhf = parse_http_header_line(line);
+        if (hhf == NULL) return NULL;
+        hr->headers[i] = hhf;
         line = split_str(NULL, "\r\n", &saveptr);
     }
 
@@ -702,7 +692,7 @@ ssize_t http_recv(
     size_t *headlen,
     size_t *bodylen
 ) {
-    char *req;
+    char *req, *tmp;
     char *p;
     size_t reqsize = 0;
     size_t maxrecvsize;
@@ -713,16 +703,30 @@ ssize_t http_recv(
     maxrecvsize = _settings->max_recv_size;
     totalreqsize = _settings->total_req_size;
 
-    req = malloc(maxrecvsize * sizeof(char));
+    req = malloc((1 + maxrecvsize) * sizeof(char));
     n = recv(newfd, req, maxrecvsize, 0);
     while (n > 0)
     {
         reqsize += n;
-        if (reqsize > totalreqsize) return -1;
+        if (reqsize > totalreqsize)
+        {
+            puts("wserve: Received exceeded total size");
+            free(req);
+            return -1;
+        }
 
+        tmp = req;
         req = realloc(req, reqsize + maxrecvsize);
+        if (req == NULL)
+        {
+            free(tmp);
+            puts("wserve: Memory allocation error");
+            return -1;
+        }
+
         if ((p = get_http_body(req, reqsize)) != NULL)
         {
+            req[reqsize] = '\0';
             *head = req;
             *body = p;
             *headlen = p - req;
@@ -734,10 +738,12 @@ ssize_t http_recv(
     }
     if (n == 0)
     {
-        printf("wserve: Connection closed by client before headers completed.\n");
+        free(req);
+        puts("wserve: Connection closed by client before headers completed");
         return -1;
     }
 
+    free(req);
     perror("recv");
     return -1;
 }
@@ -760,11 +766,14 @@ void wserve_http()
     backlog = _settings->backlog;
 
     listenfd = create_listen_socket(port, backlog);
+    if (listenfd == -1) exit(2);
+
     install_sigchld_handler();
     while (1)
     {
         int newfd = accept_connection(listenfd);
         if (newfd == -1) continue;
+        set_socket_timeouts(newfd);
 
         printf("Connection to socket %d\n", newfd);
 
@@ -788,7 +797,7 @@ void wserve_http()
                 {
                     response = process_http_requests(hr, root);
                     n = tostring_http_response(response, &response_str);
-                    _send(newfd, response_str, n);
+                    if (n > 0) _send(newfd, response_str, n);
                     free_http_response(response);
                     free_http_request(hr);
                 }
@@ -802,37 +811,51 @@ void wserve_http()
     }
 }
 
-// TODO: UPDATE WITH HR
 ssize_t recv_http_body_content_length(
     int newfd,
-    char *body, size_t bodylen,
+    char **body, size_t bodylen,
     size_t contentlength
 ) {
-    char *p = body + bodylen;
+    char *newbody;
+    char *p;
     ssize_t n;
 
-    n = recv(newfd, p, (contentlength - bodylen), 0);
-    while (n > 0)
+    if (bodylen > contentlength)
     {
-        p += n;
-        bodylen += n;
-        n = recv(newfd, p, (contentlength - bodylen), 0);
-    }
-    if (n == 0)
-    {
-        printf("wserve: Connection closed by socket %d.\n", newfd);
-        return bodylen;
+        puts("recv: body: Body length different than content length specified");
+        return -1;
     }
 
-    perror("recv");
-    return -1;
+    newbody = malloc(contentlength * sizeof(char));
+    memcpy(newbody, *body, bodylen);
+    p = newbody + bodylen;
+
+    n = _recv(newfd, p, (contentlength - bodylen));
+    if (n == -1)
+    {
+        perror("recv");
+        free(newbody);
+        return -1;
+    }
+    else if (n == (contentlength - bodylen))
+    {
+        *body = newbody;
+        return n;
+    }
+    else
+    {
+        puts("recv: body: Body length different than content length specified");
+        free(newbody);
+        return -1;
+    }
 }
 
 HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr, char *root)
 {
     if (hr == NULL || hr->hrl == NULL) return NULL;
 
-    char *buf, *ext, *mime = NULL;
+    char *buf;
+    char *ext = NULL, *mime = NULL;
     ssize_t n;
 
     if (strcmp(hr->hrl->method, "GET") == 0)
@@ -954,8 +977,18 @@ int read_static_file(char *root, char *target, char **buf, char **extension)
                 perror("open: index");
                 return -1;
             }
-            ext = malloc((strlen(".html") + 1) * sizeof(char));
-            strcpy(ext, ".html");
+
+            if (fstat(fd, &s) == 0 && S_ISREG(s.st_mode))
+            {
+                ext = malloc((strlen(".html") + 1) * sizeof(char));
+                strcpy(ext, ".html");
+            }
+            else
+            {
+                perror("open: index");
+                close(fd);
+                return -1;
+            }
         }
         else if (S_ISREG(s.st_mode)) {
             ext = malloc((strlen(get_extension(target)) + 1) * sizeof(char));
@@ -978,6 +1011,7 @@ int read_static_file(char *root, char *target, char **buf, char **extension)
     // create a new stream from file descriptor
     fp = fdopen(fd, "rb");
     if (fp == NULL) {
+        close(fd);
         perror("fdopen");
         return -1;
     }
@@ -993,7 +1027,6 @@ int read_static_file(char *root, char *target, char **buf, char **extension)
     {
         c = fgetc(fp);
         (*buf)[i] = c;
-        i++;
     }
     (*buf)[i] = '\0';
 
