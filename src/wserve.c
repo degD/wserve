@@ -25,11 +25,16 @@
 // # SERVER TCP FUNCTIONS #
 // ########################
 
-// Signal handler to reap zombie child processes. After
-// installation, called automatically by OS whenever a
-// child process exits.
-//
-// int s: Signal number (Normally SIGCHLD). Used by OS.
+/**
+ * @brief Reap terminated child processes.
+ *
+ * This function is intended to be installed as the `SIGCHLD` handler. It
+ * reaps every child that has already terminated without blocking and
+ * preserves `errno` for the interrupted code.
+ *
+ * @param[in] s Signal number supplied by the signal dispatcher. The value is
+ *              unused and is normally `SIGCHLD`.
+ */
 void sigchld_handler(int s)
 {
     int saved_errno = errno;
@@ -38,13 +43,14 @@ void sigchld_handler(int s)
     errno = saved_errno;
 }
 
-// Install the handler for the process calling sigaction.
-// Its signal disposition is inherited by its children.
-// Therefore, enables the OS to call sigchld_handler for
-// the parent and the children, reaping them when they turn
-// zombies.
-//
-// Returns 0 if works, -1 otherwise.
+/**
+ * @brief Install the `SIGCHLD` handler used to reap child processes.
+ *
+ * The handler uses `SA_RESTART` and the resulting signal disposition is
+ * inherited by children created after installation.
+ *
+ * @return `0` on success, or `-1` if installing the handler fails.
+ */
 int install_sigchld_handler(void)
 {
     struct sigaction sa;
@@ -58,6 +64,14 @@ int install_sigchld_handler(void)
     return 0;
 }
 
+/**
+ * @brief Set ten-second send and receive timeouts on a socket.
+ *
+ * @param[in] fd Socket file descriptor to configure.
+ *
+ * @return `0` if both socket options are set, or `-1` if either operation
+ *         fails.
+ */
 int set_socket_timeouts(int fd)
 {
     struct timeval tv = { .tv_sec = 10, .tv_usec = 0 };
@@ -71,14 +85,17 @@ int set_socket_timeouts(int fd)
     return 0;
 }
 
-// Create and return a socket for listening to incoming
-// connection requests. The server uses this socket to
-// Accept incoming connections.
-//
-// char *port: Port number that server will use.
-// int backlog: Requested max length of connection queue.
-//
-// Returns the socket FD. Returns -1 if it fails.
+/**
+ * @brief Create, bind, and listen on an IPv4 TCP socket.
+ *
+ * The socket is bound to all local IPv4 addresses, configured for address
+ * reuse, and given ten-second send and receive timeouts.
+ *
+ * @param[in] port NUL-terminated service name or port number.
+ * @param[in] backlog Requested length of the pending-connection queue.
+ *
+ * @return The listening socket descriptor on success, or `-1` on failure.
+ */
 int create_listen_socket(char *port, int backlog)
 {
     int listenfd;
@@ -135,14 +152,14 @@ int create_listen_socket(char *port, int backlog)
     return listenfd;
 }
 
-// Await a connection on socket listenfd.
-// Return a socket for communcating with the
-// client.
-//
-// int listenfd: Socket for listening.
-//
-// Returns the socket for communcation, or -1
-// if fails.
+/**
+ * @brief Accept one pending connection from a listening socket.
+ *
+ * @param[in] listenfd Listening socket descriptor.
+ *
+ * @return A connected socket descriptor on success, or `-1` if accepting the
+ *         connection fails.
+ */
 int accept_connection(int listenfd)
 {
     struct sockaddr_storage ss;
@@ -160,15 +177,19 @@ int accept_connection(int listenfd)
     return newfd;
 }
 
-// Send N bytes of buffer to socket.
-// Can handle partial sends automatically.
-//
-// int newfd: Socket FD.
-// void *buf: Buffer.
-// size_t nbytes: N bytes to send from buffer.
-//
-// Returns number of bytes sent. Returns -1
-// if fails.
+/**
+ * @brief Send a complete buffer to a socket when possible.
+ *
+ * The function repeats `send()` calls to handle partial writes. It stops if
+ * `send()` returns zero or reports an error.
+ *
+ * @param[in] newfd Socket file descriptor.
+ * @param[in] buf Buffer containing the bytes to send.
+ * @param[in] nbytes Number of bytes to send.
+ *
+ * @return The number of bytes sent if the loop stops without an error, or
+ *         `-1` if a `send()` call fails.
+ */
 ssize_t _send(int newfd, void *buf, size_t nbytes)
 {
     size_t bytes_sent = 0;
@@ -187,18 +208,19 @@ ssize_t _send(int newfd, void *buf, size_t nbytes)
     return n == -1 ? -1 : bytes_sent;
 }
 
-// Receive up to N bytes to buffer from socket.
-// Up to N, because the client can close the
-// connection while data has been received.
-// It is an orderly connection shutdown. Can
-// handle partial receives automatically.
-//
-// int newfd: Socket FD.
-// void *buf: Buffer.
-// size_t nbytes: N bytes to receive to buffer.
-//
-// Returns number of bytes received. Returns -1
-// if fails.
+/**
+ * @brief Receive up to a complete buffer from a socket.
+ *
+ * The function repeats `recv()` calls to handle partial reads. It stops when
+ * the requested length is reached or when the peer closes the connection.
+ *
+ * @param[in] newfd Socket file descriptor.
+ * @param[out] buf Buffer that receives the data.
+ * @param[in] nbytes Maximum number of bytes to receive.
+ *
+ * @return The number of bytes received before an orderly shutdown, or the
+ *         requested length, or `-1` if a `recv()` call fails.
+ */
 ssize_t _recv(int newfd, void *buf, size_t nbytes)
 {
     size_t bytes_recv = 0;
@@ -222,18 +244,15 @@ ssize_t _recv(int newfd, void *buf, size_t nbytes)
 // # HTTP HEADERS PARSER #
 // #######################
 
-// All parser functions should be called over a dynamically
-// allocated HTTP message. Parser functions will modify the
-// HTTP message while parsing it. Parser functions return
-// structs, which have fields that point to the message.
-// Free the HTTP message alongside freeing structs.
-
-// Count occurances of "substr" inside "str".
-//
-// char *str: haystack.
-// char *substr: needle.
-//
-// Return number of occurances. 0 if none.
+/**
+ * @brief Count occurrences of a substring, including overlapping matches.
+ *
+ * @param[in] str NUL-terminated string to search.
+ * @param[in] substr NUL-terminated substring to count.
+ *
+ * @return The number of occurrences, or `0` when `substr` is empty or is not
+ *         present in `str`.
+ */
 int count_substring(char *str, char *substr)
 {
     size_t len_str = strlen(str);
@@ -249,18 +268,23 @@ int count_substring(char *str, char *substr)
     return count;
 }
 
-// Split "str" into sub-strings by "substr". Works very
-// similar to "strtok_r". Except instead of separating
-// "str" by multiple delimiters, it splits by a single,
-// multi-character "substr". Similar to Python str.split().
-// Call with NULL in place of "str" for subsequent calls.
-//
-// char *str: The string to be splitted.
-// char *substr: The string to be used for splitting.
-// char **saveptr: Pointer for remaining section after split.
-//
-// Returns a pointer to the splitted "token". Just like
-// "strtok_r", returns NULL when no "token" left.
+/**
+ * @brief Split a string at the next occurrence of a substring.
+ *
+ * On the first call, pass the string to split. Pass `NULL` for `str` on
+ * subsequent calls to continue from `saveptr`. The delimiter is removed by
+ * replacing it with a NUL character.
+ *
+ * @param[in,out] str String to split on the first call, or `NULL` to continue
+ *                    an existing split operation.
+ * @param[in] substr Non-empty delimiter substring.
+ * @param[in,out] saveptr Caller-owned state pointer used between calls.
+ *
+ * @return A pointer to the next token within the original string, or `NULL`
+ *         when no token remains.
+ *
+ * @note The input string is modified and no token storage is allocated.
+ */
 char *split_str(char *str, char *substr, char **saveptr)
 {
     char *p;
@@ -287,14 +311,14 @@ char *split_str(char *str, char *substr, char **saveptr)
     return str;
 }
 
-// Removes whitespace from both ends of "str" and
-// returns a new malloc'ed string, without modifying
-// the original. Because a new string is returned,
-// it is up to programmer to "free()" it.
-//
-// char *str: String to be trimmed.
-//
-// Returns pointer to the new string.
+/**
+ * @brief Copy a string after removing leading and trailing whitespace.
+ *
+ * @param[in] str NUL-terminated string to trim.
+ *
+ * @return A newly allocated, NUL-terminated trimmed string. The caller owns
+ *         the returned string and must free it, or `NULL` if allocation fails.
+ */
 char *trim(char *str)
 {
     size_t start = 0;
@@ -315,10 +339,11 @@ char *trim(char *str)
     return trimmed;
 }
 
-// Convert a string to uppercase in place.
-// Modifies the given string.
-//
-// char *str: String to be converted.
+/**
+ * @brief Convert a NUL-terminated string to uppercase in place.
+ *
+ * @param[in,out] str String to modify.
+ */
 void toupper_str(char *str)
 {
     int i = 0;
@@ -329,17 +354,21 @@ void toupper_str(char *str)
     }
 }
 
-// HTTP messages have two main parts, the "head" and
-// the "body". They are separated by a "CRLF CRLF"
-// separator. This function returns a pointer to the
-// message body by finding this "CRLF CRLF" and pointing
-// to the first char after it. Looks up to "len" chars.
-//
-// char *http_msg: HTTP message to be scanned.
-// size_t len: Length (size) of HTTP message.
-//
-// Returns either a pointer to the body, or NULL if body
-// "CRLF CRLF" not found.
+/**
+ * @brief Find the body of an HTTP message.
+ *
+ * The body begins immediately after the first `CRLFCRLF` sequence found in
+ * the supplied byte range.
+ *
+ * @param[in] http_msg HTTP message bytes to scan.
+ * @param[in] len Number of bytes available in `http_msg`.
+ *
+ * @return A pointer into `http_msg` immediately after the separator, or
+ *         `NULL` if the separator is not present.
+ *
+ * @note The returned pointer aliases `http_msg`; this function does not
+ *       allocate memory and does not require a NUL terminator.
+ */
 char *get_http_body(char *http_msg, size_t len)
 {
     if (len < 4) return NULL;
@@ -357,13 +386,21 @@ char *get_http_body(char *http_msg, size_t len)
     return NULL;
 }
 
-// Parse a single line of HTTP header and return
-// an "HTTP_HEADER_FIELD" representing it.
-//
-// char *line: Header line.
-//
-// Returns the "HTTP_HEADER" variable. Returns NULL
-// if malformed.
+/**
+ * @brief Parse one HTTP header field line.
+ *
+ * The first colon separates the field name from its value. The field name is
+ * converted to uppercase and the value is copied after trimming whitespace.
+ *
+ * @param[in,out] line NUL-terminated, writable header line to parse.
+ *
+ * @return A newly allocated header-field structure, or `NULL` when `line`
+ *         does not contain a colon.
+ *
+ * @note The first colon in `line` is replaced with `\0`. The returned `key`
+ *       aliases `line`, while `val` is separately allocated and must be
+ *       released by the caller.
+ */
 HTTP_HEADER_FIELD *parse_http_header_line(char *line)
 {
     char *saveptr;
@@ -381,12 +418,20 @@ HTTP_HEADER_FIELD *parse_http_header_line(char *line)
     return hh;
 }
 
-// Parse the request line (start line of an HTTP request) into
-// a HTTP_REQUEST_LINE struct.
-//
-// char *start_line: Request line.
-//
-// Returns HTTP_REQUEST_LINE. Returns NULL if malformed.
+/**
+ * @brief Parse an HTTP request start line.
+ *
+ * The line is split at its first two spaces into the method, request target,
+ * and HTTP version.
+ *
+ * @param[in,out] start_line NUL-terminated, writable request start line.
+ *
+ * @return A newly allocated request-line structure, or `NULL` if fewer than
+ *         two spaces are present.
+ *
+ * @note The returned fields alias `start_line`, which is modified in place.
+ *       This function performs no further syntax or HTTP-version validation.
+ */
 HTTP_REQUEST_LINE *parse_http_request_line(char *start_line)
 {
     HTTP_REQUEST_LINE *hrl;
@@ -403,12 +448,20 @@ HTTP_REQUEST_LINE *parse_http_request_line(char *start_line)
     return hrl;
 }
 
-// Parse the status line (start line of an HTTP response) into
-// a HTTP_STATUS_LINE struct.
-//
-// char *start_line: Status line.
-//
-// Returns HTTP_STATUS_LINE. Returns NULL if malformed.
+/**
+ * @brief Parse an HTTP response status line.
+ *
+ * The line is split at its first two spaces into the HTTP version, status
+ * code, and response text.
+ *
+ * @param[in,out] start_line NUL-terminated, writable response status line.
+ *
+ * @return A newly allocated status-line structure, or `NULL` if fewer than
+ *         two spaces are present.
+ *
+ * @note The returned fields alias `start_line`, which is modified in place.
+ *       This function performs no further syntax or status-code validation.
+ */
 HTTP_STATUS_LINE *parse_http_status_line(char *start_line)
 {
     HTTP_STATUS_LINE *hsl;
@@ -425,14 +478,19 @@ HTTP_STATUS_LINE *parse_http_status_line(char *start_line)
     return hsl;
 }
 
-// Parse an HTTP request into an HTTP_REQUEST struct.
-// Assumes "head" is complete with CRLFCRLF.
-//
-// char *http_msg: HTTP message to be parsed.
-// size_t http_msg_len: Size of http_msg.
-//
-// Returns the "HTTP_REQUEST" variable. Returns NULL
-// if cannot find the CRLFCRLF.
+/**
+ * @brief Parse an HTTP request message.
+ *
+ * @param[in,out] http_msg NUL-terminated, writable HTTP message containing a
+ *                         complete header section.
+ * @param[in] http_msg_len Number of message bytes available in `http_msg`.
+ *
+ * @return A newly allocated request structure, or `NULL` if the header
+ *         separator is missing or a header field cannot be parsed.
+ *
+ * @note Parsing modifies `http_msg`. The returned start-line fields and body
+ *       alias that buffer; retain it until the request is no longer used.
+ */
 HTTP_REQUEST *parse_http_request(char *http_msg, size_t http_msg_len)
 {
     HTTP_REQUEST *hr;
@@ -470,14 +528,19 @@ HTTP_REQUEST *parse_http_request(char *http_msg, size_t http_msg_len)
     return hr;
 }
 
-// Parse an HTTP response into an HTTP_RESPONSE struct.
-// Assumes "head" is complete with CRLFCRLF.
-//
-// char *http_msg: HTTP message to be parsed.
-// size_t http_msg_len: Size of http_msg.
-//
-// Returns the "HTTP_RESPONSE" variable. Returns NULL
-// if cannot find the CRLFCRLF.
+/**
+ * @brief Parse an HTTP response message.
+ *
+ * @param[in,out] http_msg NUL-terminated, writable HTTP message containing a
+ *                         complete header section.
+ * @param[in] http_msg_len Number of message bytes available in `http_msg`.
+ *
+ * @return A newly allocated response structure, or `NULL` if the header
+ *         separator is missing or a header field cannot be parsed.
+ *
+ * @note Parsing modifies `http_msg`. The returned status-line fields and body
+ *       alias that buffer; retain it until the response is no longer used.
+ */
 HTTP_RESPONSE *parse_http_response(char *http_msg, size_t http_msg_len)
 {
     HTTP_RESPONSE *hr;
@@ -515,6 +578,15 @@ HTTP_RESPONSE *parse_http_response(char *http_msg, size_t http_msg_len)
     return hr;
 }
 
+/**
+ * @brief Free the allocations associated with a parsed HTTP request.
+ *
+ * @param[in] hr Request structure to release.
+ *
+ * @note The original message buffer and strings referenced by the structure
+ *       are not freed. The caller must keep them alive until after this
+ *       function returns and release any separately allocated field values.
+ */
 void free_http_request(HTTP_REQUEST *hr)
 {
     free(hr->hrl);
@@ -524,6 +596,15 @@ void free_http_request(HTTP_REQUEST *hr)
     free(hr);
 }
 
+/**
+ * @brief Free the allocations associated with an HTTP response structure.
+ *
+ * @param[in] hr Response structure to release.
+ *
+ * @note The body and strings referenced by the structure are not freed. The
+ *       caller owns those buffers and must release any separately allocated
+ *       strings.
+ */
 void free_http_response(HTTP_RESPONSE *hr)
 {
     free(hr->hsl);
@@ -533,6 +614,17 @@ void free_http_response(HTTP_RESPONSE *hr)
     free(hr);
 }
 
+/**
+ * @brief Calculate the serialized size of an HTTP response.
+ *
+ * The size includes the status line, all header lines, the terminating
+ * `CRLFCRLF`, and the response body. It does not include a NUL terminator.
+ *
+ * @param[in] hr Response to measure.
+ *
+ * @return The serialized response length in bytes, or `-1` if `hr` is
+ *         `NULL`.
+ */
 ssize_t calc_http_response_size(HTTP_RESPONSE *hr)
 {
     if (hr == NULL) return -1;
@@ -558,6 +650,17 @@ ssize_t calc_http_response_size(HTTP_RESPONSE *hr)
     return msglen;
 }
 
+/**
+ * @brief Serialize an HTTP response into a newly allocated buffer.
+ *
+ * @param[in] hr Response to serialize.
+ * @param[out] msg Receives the allocated serialized response buffer.
+ *
+ * @return The number of serialized bytes, or `-1` if `hr` is `NULL`.
+ *
+ * @note The returned buffer is owned by the caller and is not NUL-terminated;
+ *       use the returned length when sending it.
+ */
 ssize_t tostring_http_response(HTTP_RESPONSE *hr, char **msg)
 {
     char *p;
@@ -586,6 +689,24 @@ ssize_t tostring_http_response(HTTP_RESPONSE *hr, char **msg)
     return msglen;
 }
 
+/**
+ * @brief Construct an HTTP/1.1 response structure.
+ *
+ * @param[in] status_code NUL-terminated HTTP status code.
+ * @param[in] resp_text NUL-terminated reason phrase.
+ * @param[in] body Response body, or `NULL` when `bodylen` is zero.
+ * @param[in] bodylen Number of bytes in `body`.
+ * @param[in] headers Flat array of header key/value pointers. Each header
+ *                    occupies two entries: key followed by value.
+ * @param[in] nheaders Number of header fields in `headers`.
+ *
+ * @return A newly allocated response structure.
+ *
+ * @note The status code, reason phrase, body, and header strings are not
+ *       copied. They must remain valid for the lifetime of the response.
+ *       The returned structure should be released with
+ *       `free_http_response()`.
+ */
 HTTP_RESPONSE *init_http_response(
     char *status_code,
     char *resp_text,
@@ -618,6 +739,21 @@ HTTP_RESPONSE *init_http_response(
     return hr;
 }
 
+/**
+ * @brief Append a copied key/value pair to a flat header list.
+ *
+ * @param[in,out] headers Existing list of alternating key/value pointers, or
+ *                        `NULL` when `*nheaders` is zero.
+ * @param[in,out] nheaders Number of header fields in the list. Incremented
+ *                         on success.
+ * @param[in] key NUL-terminated header name to copy.
+ * @param[in] val NUL-terminated header value to copy.
+ *
+ * @return The resized header list containing the new pair.
+ *
+ * @note The new strings are separately allocated. The caller owns the list
+ *       and every string stored in it.
+ */
 char **append_to_headers_list(
     char **headers, int *nheaders,
     char *key, char *val
@@ -645,6 +781,19 @@ char **append_to_headers_list(
 // shared global variable for server settings
 SERVER_SETTINGS *_settings = NULL;
 
+/**
+ * @brief Initialize the process-wide HTTP server settings.
+ *
+ * @param[in] root Document-root path used for static files.
+ * @param[in] port Service name or port number for the listening socket.
+ * @param[in] backlog Requested pending-connection queue length.
+ * @param[in] max_recv_size Maximum number of bytes read per `recv()` call.
+ * @param[in] total_req_size Maximum total request size accepted by
+ *                           `http_recv()`.
+ *
+ * @note `root` and `port` are stored without copying, so both strings must
+ *       remain valid while the server is running.
+ */
 void init_server_settings(
     char *root,
     char *port,
@@ -660,6 +809,13 @@ void init_server_settings(
     _settings->total_req_size = total_req_size;
 }
 
+/**
+ * @brief Check whether process-wide server settings have been initialized.
+ *
+ * Prints a diagnostic message when settings have not been initialized.
+ *
+ * @return `1` when settings are available, otherwise `0`.
+ */
 int is_server_settings_set()
 {
     if (_settings != NULL) return 1;
@@ -670,21 +826,28 @@ int is_server_settings_set()
     }
 }
 
-// Receive an HTTP message. Receives until "head" is complete.
-// Returns the number of bytes read. Allocates memory for HTTP
-// message. Programmer should free "head" after use. Function
-// writes "body", "bodylen" and "head", "headlen". No validation
-// involved.
-//
-// int newfd: File descriptor of socket.
-// char **head: It will point to the HTTP message (head).
-// char **body: It will point to memory after CRLFCRLF.
-// size_t *headlen: It will hold head memory size.
-// size_t *bodylen: It will hold received body memory size.
-// size_t maxrecvsize: Max number of bytes received at each "recv()".
-//
-// Returns number of bytes received. Returns "-1" if an error
-// occurs.
+/**
+ * @brief Receive a message through the end of its HTTP header section.
+ *
+ * Reads chunks until `CRLFCRLF` is received or an error occurs. The receive
+ * limits are taken from the process-wide settings.
+ *
+ * @param[in] newfd Connected socket file descriptor.
+ * @param[out] head Receives an allocated, NUL-terminated buffer containing
+ *                  all bytes received. Free this buffer when finished.
+ * @param[out] body Receives a pointer into `*head` immediately after the
+ *                  header separator.
+ * @param[out] headlen Receives the header length, including `CRLFCRLF`.
+ * @param[out] bodylen Receives the number of body bytes already read after
+ *                     the header separator.
+ *
+ * @return The total number of bytes received, or `-1` if settings are absent,
+ *         the request exceeds the configured limit, the peer closes before
+ *         the header is complete, or a socket/allocation error occurs.
+ *
+ * @note This function does not inspect `Content-Length` and may return before
+ *       the complete body has been received.
+ */
 ssize_t http_recv(
     int newfd,
     char **head,
@@ -748,12 +911,17 @@ ssize_t http_recv(
     return -1;
 }
 
-// HTTP server core loop. Runs indefinitely and
-// returns nothing.
-//
-// char *port: Port number that server will use.
-// int backlog: Max length of connection queue.
-// size_t maxrecvsize: Max number of bytes received at each "recv()".
+/**
+ * @brief Run the main process-per-connection HTTP server loop.
+ *
+ * The function creates the listening socket, accepts connections, forks a
+ * child for each connection, receives one request, sends one response, and
+ * closes the connection.
+ *
+ * @note Server settings must be initialized with `init_server_settings()`
+ *       first. The function does not return during normal operation; it
+ *       exits the process when initial setup fails.
+ */
 void wserve_http()
 {
     char *root, *port;
@@ -811,6 +979,22 @@ void wserve_http()
     }
 }
 
+/**
+ * @brief Receive the remainder of a body with a known content length.
+ *
+ * @param[in] newfd Connected socket file descriptor.
+ * @param[in,out] body Pointer to the bytes already received. On success it
+ *                     is replaced with a newly allocated complete body.
+ * @param[in] bodylen Number of body bytes already present at `*body`.
+ * @param[in] contentlength Expected total body length.
+ *
+ * @return The number of bytes read from the socket, or `-1` if the supplied
+ *         length is inconsistent or the remaining bytes cannot be received.
+ *
+ * @note The new buffer is exactly `contentlength` bytes and is not
+ *       NUL-terminated. The original buffer is not freed. If `bodylen` equals
+ *       `contentlength`, the function returns `0` after replacing `*body`.
+ */
 ssize_t recv_http_body_content_length(
     int newfd,
     char **body, size_t bodylen,
@@ -850,6 +1034,22 @@ ssize_t recv_http_body_content_length(
     }
 }
 
+/**
+ * @brief Create a response for a parsed HTTP request.
+ *
+ * `GET` and `HEAD` requests are served from the configured static-file root.
+ * Missing files and unsupported MIME types produce `404`; methods other than
+ * `GET` and `HEAD` produce the server's `418` response.
+ *
+ * @param[in] hr Parsed request to process.
+ * @param[in] root Document-root path for static files.
+ *
+ * @return A newly allocated response structure, or `NULL` when `hr` or its
+ *         request line is `NULL`.
+ *
+ * @note The caller owns the returned response and should release it with
+ *       `free_http_response()`.
+ */
 HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr, char *root)
 {
     if (hr == NULL || hr->hrl == NULL) return NULL;
@@ -905,6 +1105,18 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr, char *root)
 // # STATIC ROUTING #
 // ##################
 
+/**
+ * @brief Validate a request target for static-file lookup.
+ *
+ * The accepted form is a non-empty path beginning with `/` that contains no
+ * `..`, `./`, or percent characters. This is a syntactic check only; it does
+ * not access the filesystem or normalize the path.
+ *
+ * @param[in] target NUL-terminated request target to validate.
+ *
+ * @return `1` when the target satisfies the static-routing policy, otherwise
+ *         `0`.
+ */
 int validate_target_path(char *target)
 {
     // target NULL, empty, not starting with "/",
@@ -921,11 +1133,42 @@ int validate_target_path(char *target)
     return 1;
 }
 
+/**
+ * @brief Invoke the Linux `openat2` system call.
+ *
+ * @param[in] dirfd Directory file descriptor used to resolve relative paths.
+ * @param[in] path Path to open.
+ * @param[in] how Open and path-resolution options.
+ * @param[in] size Size of the `struct open_how` data supplied by `how`.
+ *
+ * @return The file descriptor returned by the kernel, or `-1` on error with
+ *         `errno` set by the system call.
+ */
 long openat2(int dirfd, const char *path, struct open_how *how, size_t size)
 {
     return syscall(SYS_openat2, dirfd, path, how, size);
 }
 
+/**
+ * @brief Read a static file beneath a document root.
+ *
+ * The target is resolved relative to `root` without following symbolic links.
+ * If the target names a directory, `index.html` is opened from that directory
+ * instead. The entire file is copied into a newly allocated buffer.
+ *
+ * @param[in] root Path to the document-root directory.
+ * @param[in] target Validated request target relative to `root`.
+ * @param[out] buf Receives the allocated file contents. An extra NUL byte is
+ *                 appended after the file data.
+ * @param[out] extension Receives an allocated file extension, including the
+ *                       leading dot when present.
+ *
+ * @return The file length in bytes, or `-1` if validation, lookup, opening,
+ *         metadata, or reading setup fails.
+ *
+ * @note On success, the caller owns both `*buf` and `*extension` and must
+ *       free them. Binary file data may contain embedded NUL bytes.
+ */
 int read_static_file(char *root, char *target, char **buf, char **extension)
 {
     int c;
@@ -1035,6 +1278,16 @@ int read_static_file(char *root, char *target, char **buf, char **extension)
     return len;
 }
 
+/**
+ * @brief Return the suffix beginning at the last dot in a path.
+ *
+ * @param[in] path NUL-terminated path to inspect.
+ *
+ * @return A pointer into `path` at its last `.` character, or `path` itself
+ *         when no dot is present.
+ *
+ * @note The returned pointer aliases `path`; no memory is allocated.
+ */
 char *get_extension(char *path)
 {
     char *p = strrchr(path, '.');
@@ -1042,6 +1295,18 @@ char *get_extension(char *path)
     return p;
 }
 
+/**
+ * @brief Map a file extension to a MIME type.
+ *
+ * @param[in] extension Extension to map, normally including its leading dot.
+ *
+ * @return A pointer to a static MIME-type string. Returns `NULL` when
+ *         `extension` is `NULL`; unknown extensions map to
+ *         `application/octet-stream`.
+ *
+ * @note Matching is case-sensitive and the returned string must not be freed
+ *       or modified.
+ */
 char *mime_type(char *extension)
 {
     if (extension == NULL) return NULL;
