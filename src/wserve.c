@@ -103,7 +103,6 @@ int create_listen_socket(char *port, int backlog)
     int yes = 1;
     int r;
     struct addrinfo hints, *ai;
-    struct timeval tv;
 
     // Get a socket and bind to it.
     memset(&hints, 0, sizeof(hints));
@@ -125,12 +124,6 @@ int create_listen_socket(char *port, int backlog)
         freeaddrinfo(ai);
         return -1;
     }
-
-    // timeout after 10 seconds of no operation
-    tv.tv_sec = 10;
-    tv.tv_usec = 0;
-    setsockopt(listenfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-    setsockopt(listenfd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
 
     // Enable socket port reuse.
     setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
@@ -816,8 +809,8 @@ int validate_request(HTTP_REQUEST *hr)
 {
     // method not supported
     if (
-        strcmp(hr->hrl->method, "GET") != 0 ||
-        strcmp(hr->hrl->method, "HEAD") != 0 ||
+        strcmp(hr->hrl->method, "GET") != 0 &&
+        strcmp(hr->hrl->method, "HEAD") != 0 &&
         strcmp(hr->hrl->method, "POST") != 0)
         return 1;
 
@@ -1050,6 +1043,7 @@ void wserve_http()
  * @brief Receive the remainder of a body with a known content length.
  *
  * @param[in] newfd Connected socket file descriptor.
+ * @param[in] headsize Size of HTTP request head.
  * @param[in,out] body Pointer to the bytes already received. On success it
  *                     is replaced with a newly allocated complete body.
  * @param[in] bodylen Number of body bytes already present at `*body`.
@@ -1064,12 +1058,19 @@ void wserve_http()
  */
 ssize_t recv_http_body_content_length(
     int newfd,
+    int headsize,
     char **body, size_t bodylen,
     size_t contentlength)
 {
     char *newbody;
     char *p;
     ssize_t n;
+
+    if ((headsize + contentlength) > _settings->total_req_size)
+    {
+        puts("wserve: Received exceeded total size");
+        return -1;
+    }
 
     if (bodylen > contentlength)
     {
@@ -1112,6 +1113,7 @@ char *itoa_str(unsigned long n)
 {
     char *s;
     size_t len = 0;
+    unsigned long m = n;
 
     while (n > 0)
     {
@@ -1120,7 +1122,7 @@ char *itoa_str(unsigned long n)
     }
 
     s = malloc((len+1) * sizeof(char));
-    snprintf(s, len+1, "%ld", n);
+    snprintf(s, len+1, "%ld", m);
     return s;
 }
 

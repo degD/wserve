@@ -89,7 +89,7 @@ Fix unit tests. Refactor of libraries. LLM code review. Documentation rewrite. W
 - https://www.man7.org/linux/man-pages/man2/open_how.2type.html
 - https://stackoverflow.com/a/4182564/19962636
 
-## v0.11
+## v0.11 [COMPLETE]
 
 Simple request validations. Transfer-Encoding, conflicting duplicate Content-Length values, malformed requests, oversized headers, and oversized bodies will be automaticly rejected. Methods other than GET, HEAD, POST will get rejected. Only HTTP/1.1 is supported.
 
