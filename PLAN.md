@@ -91,7 +91,7 @@ Fix unit tests. Refactor of libraries. LLM code review. Documentation rewrite. W
 
 ## v0.11
 
-Simple request validations. Transfer-Encoding, conflicting duplicate Content-Length values, malformed requests, oversized headers, and oversized bodies will be automaticly rejected. Methods other than GET, HEAD, POST will get rejected. For POST, a `418 I'm a teapot` response will be sent for now. Implement HTTP version validation for rejection of connections as well.
+Simple request validations. Transfer-Encoding, conflicting duplicate Content-Length values, malformed requests, oversized headers, and oversized bodies will be automaticly rejected. Methods other than GET, HEAD, POST will get rejected. Only HTTP/1.1 is supported.
 
 ## v0.12
 

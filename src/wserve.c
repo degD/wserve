@@ -20,7 +20,6 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
-
 // ########################
 // # SERVER TCP FUNCTIONS #
 // ########################
@@ -38,8 +37,9 @@
 void sigchld_handler(int s)
 {
     int saved_errno = errno;
-    (void) s;
-    while (waitpid(-1, NULL, WNOHANG) > 0);
+    (void)s;
+    while (waitpid(-1, NULL, WNOHANG) > 0)
+        ;
     errno = saved_errno;
 }
 
@@ -57,7 +57,8 @@ int install_sigchld_handler(void)
     sa.sa_handler = sigchld_handler;
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = SA_RESTART;
-    if (sigaction(SIGCHLD, &sa, NULL) == -1) {
+    if (sigaction(SIGCHLD, &sa, NULL) == -1)
+    {
         perror("wserve: sigaction");
         return -1;
     }
@@ -74,12 +75,12 @@ int install_sigchld_handler(void)
  */
 int set_socket_timeouts(int fd)
 {
-    struct timeval tv = { .tv_sec = 10, .tv_usec = 0 };
+    struct timeval tv = {.tv_sec = 10, .tv_usec = 0};
 
     if (
         setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) == -1 ||
-        setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv)) == -1
-    ) {
+        setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv)) == -1)
+    {
         return -1;
     }
     return 0;
@@ -111,13 +112,15 @@ int create_listen_socket(char *port, int backlog)
     hints.ai_flags = AI_PASSIVE;
 
     r = getaddrinfo(NULL, port, &hints, &ai);
-    if (r != 0) {
+    if (r != 0)
+    {
         fprintf(stderr, "wserve: %s\n", gai_strerror(r));
         return -1;
     }
 
     listenfd = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
-    if (listenfd == -1) {
+    if (listenfd == -1)
+    {
         perror("wserve: socket");
         freeaddrinfo(ai);
         return -1;
@@ -134,7 +137,8 @@ int create_listen_socket(char *port, int backlog)
 
     // Bind the socket to the local address and port.
     r = bind(listenfd, ai->ai_addr, ai->ai_addrlen);
-    if (r == -1) {
+    if (r == -1)
+    {
         close(listenfd);
         perror("source: bind");
         freeaddrinfo(ai);
@@ -144,7 +148,8 @@ int create_listen_socket(char *port, int backlog)
     freeaddrinfo(ai);
 
     r = listen(listenfd, backlog);
-    if (r == -1) {
+    if (r == -1)
+    {
         perror("wserve: listen");
         return -1;
     }
@@ -167,9 +172,10 @@ int accept_connection(int listenfd)
     int newfd;
 
     sin_size = sizeof(ss);
-    newfd = accept(listenfd, (struct sockaddr *) &ss, &sin_size);
+    newfd = accept(listenfd, (struct sockaddr *)&ss, &sin_size);
 
-    if (newfd == -1) {
+    if (newfd == -1)
+    {
         perror("wserve: accept");
         return -1;
     }
@@ -197,9 +203,11 @@ ssize_t _send(int newfd, void *buf, size_t nbytes)
     ssize_t n = 0;
     char *p = buf;
 
-    while(bytes_sent < nbytes) {
+    while (bytes_sent < nbytes)
+    {
         n = send(newfd, p, bytes_left, 0);
-        if (n <= 0) break;
+        if (n <= 0)
+            break;
         bytes_sent += n;
         bytes_left -= n;
         p += n;
@@ -228,9 +236,11 @@ ssize_t _recv(int newfd, void *buf, size_t nbytes)
     ssize_t n = 0;
     char *p = buf;
 
-    while(bytes_recv < nbytes) {
+    while (bytes_recv < nbytes)
+    {
         n = recv(newfd, p, bytes_left, 0);
-        if (n <= 0) break;
+        if (n <= 0)
+            break;
         bytes_recv += n;
         bytes_left -= n;
         p += n;
@@ -238,7 +248,6 @@ ssize_t _recv(int newfd, void *buf, size_t nbytes)
 
     return n == -1 ? -1 : bytes_recv;
 }
-
 
 // #######################
 // # HTTP HEADERS PARSER #
@@ -259,10 +268,12 @@ int count_substring(char *str, char *substr)
     size_t len_substr = strlen(substr);
     int count = 0;
 
-    if (len_substr == 0 || len_substr > len_str) return 0;
+    if (len_substr == 0 || len_substr > len_str)
+        return 0;
     for (size_t i = 0; i <= len_str - len_substr; i++)
     {
-        if (strncmp(str + i, substr, len_substr) == 0) count++;
+        if (strncmp(str + i, substr, len_substr) == 0)
+            count++;
     }
 
     return count;
@@ -371,15 +382,16 @@ void toupper_str(char *str)
  */
 char *get_http_body(char *http_msg, size_t len)
 {
-    if (len < 4) return NULL;
-    for (int i = 0; i < len-3; i++)
+    if (len < 4)
+        return NULL;
+    for (int i = 0; i < len - 3; i++)
     {
         if (
-            http_msg[i] == '\r'   &&
-            http_msg[i+1] == '\n' &&
-            http_msg[i+2] == '\r' &&
-            http_msg[i+3] == '\n'
-        ) {
+            http_msg[i] == '\r' &&
+            http_msg[i + 1] == '\n' &&
+            http_msg[i + 2] == '\r' &&
+            http_msg[i + 3] == '\n')
+        {
             return http_msg + i + 4;
         }
     }
@@ -407,7 +419,8 @@ HTTP_HEADER_FIELD *parse_http_header_line(char *line)
     char *val;
     HTTP_HEADER_FIELD *hh;
 
-    if (strstr(line, ":") == NULL) return NULL;
+    if (strstr(line, ":") == NULL)
+        return NULL;
 
     hh = malloc(sizeof(HTTP_HEADER_FIELD));
     val = strstr(line, ":") + sizeof(char);
@@ -438,7 +451,8 @@ HTTP_REQUEST_LINE *parse_http_request_line(char *start_line)
     char *saveptr;
     int n = count_substring(start_line, " ");
 
-    if (n < 2) return NULL;
+    if (n < 2)
+        return NULL;
 
     hrl = malloc(sizeof(HTTP_REQUEST_LINE));
     hrl->method = split_str(start_line, " ", &saveptr);
@@ -468,7 +482,8 @@ HTTP_STATUS_LINE *parse_http_status_line(char *start_line)
     char *saveptr;
     int n = count_substring(start_line, " ");
 
-    if (n < 2) return NULL;
+    if (n < 2)
+        return NULL;
 
     hsl = malloc(sizeof(HTTP_STATUS_LINE));
     hsl->http_version = split_str(start_line, " ", &saveptr);
@@ -502,7 +517,8 @@ HTTP_REQUEST *parse_http_request(char *http_msg, size_t http_msg_len)
     char *body;
 
     body = get_http_body(http_msg, http_msg_len);
-    if (body == NULL) return NULL;
+    if (body == NULL)
+        return NULL;
 
     hr = malloc(sizeof(HTTP_REQUEST));
     head = split_str(http_msg, "\r\n\r\n", &saveptr);
@@ -520,7 +536,8 @@ HTTP_REQUEST *parse_http_request(char *http_msg, size_t http_msg_len)
     for (int i = 0; i < hr->num_of_headers; i++)
     {
         hhf = parse_http_header_line(line);
-        if (hhf == NULL) return NULL;
+        if (hhf == NULL)
+            return NULL;
         hr->headers[i] = hhf;
         line = split_str(NULL, "\r\n", &saveptr);
     }
@@ -552,7 +569,8 @@ HTTP_RESPONSE *parse_http_response(char *http_msg, size_t http_msg_len)
     char *body;
 
     body = get_http_body(http_msg, http_msg_len);
-    if (body == NULL) return NULL;
+    if (body == NULL)
+        return NULL;
 
     hr = malloc(sizeof(HTTP_RESPONSE));
     head = split_str(http_msg, "\r\n\r\n", &saveptr);
@@ -570,7 +588,8 @@ HTTP_RESPONSE *parse_http_response(char *http_msg, size_t http_msg_len)
     for (int i = 0; i < hr->num_of_headers; i++)
     {
         hhf = parse_http_header_line(line);
-        if (hhf == NULL) return NULL;
+        if (hhf == NULL)
+            return NULL;
         hr->headers[i] = hhf;
         line = split_str(NULL, "\r\n", &saveptr);
     }
@@ -627,7 +646,8 @@ void free_http_response(HTTP_RESPONSE *hr)
  */
 ssize_t calc_http_response_size(HTTP_RESPONSE *hr)
 {
-    if (hr == NULL) return -1;
+    if (hr == NULL)
+        return -1;
 
     size_t msglen = 0;
 
@@ -665,22 +685,21 @@ ssize_t tostring_http_response(HTTP_RESPONSE *hr, char **msg)
 {
     char *p;
     ssize_t msglen = calc_http_response_size(hr);
-    if (msglen < 0) return -1;
+    if (msglen < 0)
+        return -1;
 
     *msg = malloc(msglen * sizeof(char));
     p = *msg;
 
     p += sprintf(p, "%s %s %s\r\n",
-        hr->hsl->http_version,
-        hr->hsl->status_code,
-        hr->hsl->response_text
-    );
+                 hr->hsl->http_version,
+                 hr->hsl->status_code,
+                 hr->hsl->response_text);
     for (int i = 0; i < hr->num_of_headers; i++)
     {
         p += sprintf(p, "%s: %s\r\n",
-            hr->headers[i]->key,
-            hr->headers[i]->val
-        );
+                     hr->headers[i]->key,
+                     hr->headers[i]->val);
     }
     memcpy(p, "\r\n", 2);
     p += 2;
@@ -711,8 +730,8 @@ HTTP_RESPONSE *init_http_response(
     char *status_code,
     char *resp_text,
     char *body, size_t bodylen,
-    char **headers, int nheaders
-) {
+    char **headers, int nheaders)
+{
     HTTP_RESPONSE *hr = malloc(sizeof(HTTP_RESPONSE));
     HTTP_STATUS_LINE *hsl;
     HTTP_HEADER_FIELD *p;
@@ -732,8 +751,8 @@ HTTP_RESPONSE *init_http_response(
     {
         p = malloc(sizeof(HTTP_HEADER_FIELD));
         hr->headers[i] = p;
-        p->key = headers[2*i];
-        p->val = headers[2*i+1];
+        p->key = headers[2 * i];
+        p->val = headers[2 * i + 1];
     }
 
     return hr;
@@ -756,23 +775,22 @@ HTTP_RESPONSE *init_http_response(
  */
 char **append_to_headers_list(
     char **headers, int *nheaders,
-    char *key, char *val
-) {
+    char *key, char *val)
+{
     int i;
     char **new_headers;
 
     *nheaders += 1;
-    new_headers = realloc(headers, *nheaders * sizeof(char*) * 2);
+    new_headers = realloc(headers, *nheaders * sizeof(char *) * 2);
 
     i = *nheaders - 1;
-    new_headers[2*i] = malloc((strlen(key)+1) * sizeof(char));
-    strcpy(new_headers[2*i], key);
-    new_headers[2*i+1] = malloc((strlen(val)+1) * sizeof(char));
-    strcpy(new_headers[2*i+1], val);
+    new_headers[2 * i] = malloc((strlen(key) + 1) * sizeof(char));
+    strcpy(new_headers[2 * i], key);
+    new_headers[2 * i + 1] = malloc((strlen(val) + 1) * sizeof(char));
+    strcpy(new_headers[2 * i + 1], val);
 
     return new_headers;
 }
-
 
 // ###############
 // # HTTP SERVER #
@@ -780,6 +798,49 @@ char **append_to_headers_list(
 
 // shared global variable for server settings
 SERVER_SETTINGS *_settings = NULL;
+
+/**
+ * @brief Validate an HTTP request.
+ *
+ * Only `GET`, `HEAD`, and `POST` are allowed. The request must not
+ * contain a `TRANSFER-ENCODING` header. At most one `CONTENT-LENGTH`
+ * header is permitted. Only `HTTP/1.1` is accepted.
+ *
+ * @param[in] hr Parsed request to be validated.
+ *
+ * @return
+ * `0` if request is valid. `1` if method not supported.
+ * `2` if malformed or unsupported headers. `3` if HTTP
+ * version is unsuported.
+ */
+int validate_request(HTTP_REQUEST *hr)
+{
+    // method not supported
+    if (
+        strcmp(hr->hrl->method, "GET") != 0 ||
+        strcmp(hr->hrl->method, "HEAD") != 0 ||
+        strcmp(hr->hrl->method, "POST") != 0)
+        return 1;
+
+    // malformed/unsupported headers
+    int c = 0;
+    for (int i = 0; i < hr->num_of_headers; i++)
+    {
+        if (strcmp(hr->headers[i]->key, "TRANSFER-ENCODING") == 0)
+            return 2;
+
+        if (c > 1)
+            return 2;
+        if (strcmp(hr->headers[i]->key, "CONTENT-LENGTH") == 0)
+            c += 1;
+    }
+
+    // http version unsupported
+    if (strcmp(hr->hrl->http_version, "HTTP/1.1") != 0)
+        return 3;
+
+    return 0;
+}
 
 /**
  * @brief Initialize the process-wide HTTP server settings.
@@ -799,8 +860,8 @@ void init_server_settings(
     char *port,
     int backlog,
     size_t max_recv_size,
-    size_t total_req_size
-) {
+    size_t total_req_size)
+{
     _settings = malloc(sizeof(SERVER_SETTINGS));
     _settings->root = root;
     _settings->port = port;
@@ -818,7 +879,8 @@ void init_server_settings(
  */
 int is_server_settings_set()
 {
-    if (_settings != NULL) return 1;
+    if (_settings != NULL)
+        return 1;
     else
     {
         puts("settings: Server settings must be initialized");
@@ -853,8 +915,8 @@ ssize_t http_recv(
     char **head,
     char **body,
     size_t *headlen,
-    size_t *bodylen
-) {
+    size_t *bodylen)
+{
     char *req, *tmp;
     char *p;
     size_t reqsize = 0;
@@ -862,7 +924,8 @@ ssize_t http_recv(
     size_t totalreqsize;
     ssize_t n;
 
-    if (!is_server_settings_set()) return -1;
+    if (!is_server_settings_set())
+        return -1;
     maxrecvsize = _settings->max_recv_size;
     totalreqsize = _settings->total_req_size;
 
@@ -897,7 +960,7 @@ ssize_t http_recv(
             return reqsize;
         }
 
-        n = recv(newfd, req+reqsize, maxrecvsize, 0);
+        n = recv(newfd, req + reqsize, maxrecvsize, 0);
     }
     if (n == 0)
     {
@@ -928,19 +991,22 @@ void wserve_http()
     int backlog;
     int listenfd;
 
-    if (!is_server_settings_set()) exit(1);
+    if (!is_server_settings_set())
+        exit(1);
     root = _settings->root;
     port = _settings->port;
     backlog = _settings->backlog;
 
     listenfd = create_listen_socket(port, backlog);
-    if (listenfd == -1) exit(2);
+    if (listenfd == -1)
+        exit(2);
 
     install_sigchld_handler();
     while (1)
     {
         int newfd = accept_connection(listenfd);
-        if (newfd == -1) continue;
+        if (newfd == -1)
+            continue;
         set_socket_timeouts(newfd);
 
         printf("Connection to socket %d\n", newfd);
@@ -965,7 +1031,8 @@ void wserve_http()
                 {
                     response = process_http_requests(hr, root);
                     n = tostring_http_response(response, &response_str);
-                    if (n > 0) _send(newfd, response_str, n);
+                    if (n > 0)
+                        _send(newfd, response_str, n);
                     free_http_response(response);
                     free_http_request(hr);
                 }
@@ -998,8 +1065,8 @@ void wserve_http()
 ssize_t recv_http_body_content_length(
     int newfd,
     char **body, size_t bodylen,
-    size_t contentlength
-) {
+    size_t contentlength)
+{
     char *newbody;
     char *p;
     ssize_t n;
@@ -1052,7 +1119,8 @@ ssize_t recv_http_body_content_length(
  */
 HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr, char *root)
 {
-    if (hr == NULL || hr->hrl == NULL) return NULL;
+    if (hr == NULL || hr->hrl == NULL)
+        return NULL;
 
     char *buf;
     char *ext = NULL, *mime = NULL;
@@ -1100,7 +1168,6 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr, char *root)
         return init_http_response("418", "I'm a teapod", NULL, 0, NULL, 0);
 }
 
-
 // ##################
 // # STATIC ROUTING #
 // ##################
@@ -1122,13 +1189,12 @@ int validate_target_path(char *target)
     // target NULL, empty, not starting with "/",
     // or including "./", ".." or "%".
     if (
-        target == NULL                  ||
-        strlen(target) == 0             ||
-        target[0] != '/'                ||
-        strstr(target, "..") != NULL    ||
-        strstr(target, "./") != NULL    ||
-        strstr(target, "%") != NULL
-    )
+        target == NULL ||
+        strlen(target) == 0 ||
+        target[0] != '/' ||
+        strstr(target, "..") != NULL ||
+        strstr(target, "./") != NULL ||
+        strstr(target, "%") != NULL)
         return 0;
     return 1;
 }
@@ -1211,7 +1277,8 @@ int read_static_file(char *root, char *target, char **buf, char **extension)
     // if path directory, try opening an "index.html"
     if (fstat(fd, &s) == 0)
     {
-        if (S_ISDIR(s.st_mode)) {
+        if (S_ISDIR(s.st_mode))
+        {
             tmp = fd;
             fd = openat(fd, "index.html", O_NOFOLLOW);
             close(tmp);
@@ -1233,7 +1300,8 @@ int read_static_file(char *root, char *target, char **buf, char **extension)
                 return -1;
             }
         }
-        else if (S_ISREG(s.st_mode)) {
+        else if (S_ISREG(s.st_mode))
+        {
             ext = malloc((strlen(get_extension(target)) + 1) * sizeof(char));
             strcpy(ext, get_extension(target));
         }
@@ -1253,7 +1321,8 @@ int read_static_file(char *root, char *target, char **buf, char **extension)
 
     // create a new stream from file descriptor
     fp = fdopen(fd, "rb");
-    if (fp == NULL) {
+    if (fp == NULL)
+    {
         close(fd);
         perror("fdopen");
         return -1;
@@ -1261,7 +1330,8 @@ int read_static_file(char *root, char *target, char **buf, char **extension)
 
     // get file content length
     len = 0;
-    while (fgetc(fp) != EOF) len++;
+    while (fgetc(fp) != EOF)
+        len++;
     *buf = malloc((len + 1) * sizeof(char));
 
     // read content to a buffer
@@ -1291,7 +1361,8 @@ int read_static_file(char *root, char *target, char **buf, char **extension)
 char *get_extension(char *path)
 {
     char *p = strrchr(path, '.');
-    if (p == NULL) return path;
+    if (p == NULL)
+        return path;
     return p;
 }
 
@@ -1309,88 +1380,170 @@ char *get_extension(char *path)
  */
 char *mime_type(char *extension)
 {
-    if (extension == NULL) return NULL;
-    else if (extension[0] != '.') return "application/octet-stream";
+    if (extension == NULL)
+        return NULL;
+    else if (extension[0] != '.')
+        return "application/octet-stream";
 
-    else if (strcmp(extension, ".aac") == 0) return "audio/aac";
-    else if (strcmp(extension, ".abw") == 0) return "application/x-abiword";
-    else if (strcmp(extension, ".apng") == 0) return "image/apng";
-    else if (strcmp(extension, ".arc") == 0) return "application/x-freearc";
-    else if (strcmp(extension, ".avif") == 0) return "image/avif";
-    else if (strcmp(extension, ".avi") == 0) return "video/x-msvideo";
-    else if (strcmp(extension, ".azw") == 0) return "application/vnd.amazon.ebook";
-    else if (strcmp(extension, ".bin") == 0) return "application/octet-stream";
-    else if (strcmp(extension, ".bmp") == 0) return "image/bmp";
-    else if (strcmp(extension, ".bz") == 0) return "application/x-bzip";
-    else if (strcmp(extension, ".bz2") == 0) return "application/x-bzip2";
-    else if (strcmp(extension, ".cda") == 0) return "application/x-cdf";
-    else if (strcmp(extension, ".csh") == 0) return "application/x-csh";
-    else if (strcmp(extension, ".css") == 0) return "text/css";
-    else if (strcmp(extension, ".csv") == 0) return "text/csv";
-    else if (strcmp(extension, ".doc") == 0) return "application/msword";
-    else if (strcmp(extension, ".docx") == 0) return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-    else if (strcmp(extension, ".eot") == 0) return "application/vnd.ms-fontobject";
-    else if (strcmp(extension, ".epub") == 0) return "application/epub+zip";
-    else if (strcmp(extension, ".gz") == 0) return "application/gzip";
-    else if (strcmp(extension, ".gif") == 0) return "image/gif";
-    else if (strcmp(extension, ".htm") == 0) return "text/html";
-    else if (strcmp(extension, ".html") == 0) return "text/html";
-    else if (strcmp(extension, ".ico") == 0) return "image/vnd.microsoft.icon";
-    else if (strcmp(extension, ".ics") == 0) return "text/calendar";
-    else if (strcmp(extension, ".jar") == 0) return "application/java-archive";
-    else if (strcmp(extension, ".jpeg") == 0) return "image/jpeg";
-    else if (strcmp(extension, ".jpg") == 0) return "image/jpeg";
-    else if (strcmp(extension, ".js") == 0) return "text/javascript";
-    else if (strcmp(extension, ".json") == 0) return "application/json";
-    else if (strcmp(extension, ".jsonld") == 0) return "application/ld+json";
-    else if (strcmp(extension, ".md") == 0) return "text/markdown";
-    else if (strcmp(extension, ".mid") == 0) return "audio/midi";
-    else if (strcmp(extension, ".midi") == 0) return "audio/midi";
-    else if (strcmp(extension, ".mjs") == 0) return "text/javascript";
-    else if (strcmp(extension, ".mp3") == 0) return "audio/mpeg";
-    else if (strcmp(extension, ".mp4") == 0) return "video/mp4";
-    else if (strcmp(extension, ".mpeg") == 0) return "video/mpeg";
-    else if (strcmp(extension, ".mpkg") == 0) return "application/vnd.apple.installer+xml";
-    else if (strcmp(extension, ".odp") == 0) return "application/vnd.oasis.opendocument.presentation";
-    else if (strcmp(extension, ".ods") == 0) return "application/vnd.oasis.opendocument.spreadsheet";
-    else if (strcmp(extension, ".odt") == 0) return "application/vnd.oasis.opendocument.text";
-    else if (strcmp(extension, ".oga") == 0) return "audio/ogg";
-    else if (strcmp(extension, ".ogv") == 0) return "video/ogg";
-    else if (strcmp(extension, ".ogx") == 0) return "application/ogg";
-    else if (strcmp(extension, ".opus") == 0) return "audio/ogg";
-    else if (strcmp(extension, ".otf") == 0) return "font/otf";
-    else if (strcmp(extension, ".pdf") == 0) return "application/pdf";
-    else if (strcmp(extension, ".php") == 0) return "application/x-httpd-php";
-    else if (strcmp(extension, ".png") == 0) return "image/png";
-    else if (strcmp(extension, ".ppt") == 0) return "application/vnd.ms-powerpoint";
-    else if (strcmp(extension, ".pptx") == 0) return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-    else if (strcmp(extension, ".rar") == 0) return "application/vnd.rar";
-    else if (strcmp(extension, ".rtf") == 0) return "application/rtf";
-    else if (strcmp(extension, ".sh") == 0) return "application/x-sh";
-    else if (strcmp(extension, ".svg") == 0) return "image/svg+xml";
-    else if (strcmp(extension, ".tar") == 0) return "application/x-tar";
-    else if (strcmp(extension, ".tif") == 0) return "image/tiff";
-    else if (strcmp(extension, ".tiff") == 0) return "image/tiff";
-    else if (strcmp(extension, ".ts") == 0) return "video/mp2t";
-    else if (strcmp(extension, ".ttf") == 0) return "font/ttf";
-    else if (strcmp(extension, ".txt") == 0) return "text/plain";
-    else if (strcmp(extension, ".vsd") == 0) return "application/vnd.visio";
-    else if (strcmp(extension, ".wav") == 0) return "audio/wav";
-    else if (strcmp(extension, ".weba") == 0) return "audio/webm";
-    else if (strcmp(extension, ".webm") == 0) return "video/webm";
-    else if (strcmp(extension, ".webmanifest") == 0) return "application/manifest+json";
-    else if (strcmp(extension, ".webp") == 0) return "image/webp";
-    else if (strcmp(extension, ".woff") == 0) return "font/woff";
-    else if (strcmp(extension, ".woff2") == 0) return "font/woff2";
-    else if (strcmp(extension, ".xhtml") == 0) return "application/xhtml+xml";
-    else if (strcmp(extension, ".xls") == 0) return "application/vnd.ms-excel";
-    else if (strcmp(extension, ".xlsx") == 0) return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-    else if (strcmp(extension, ".xml") == 0) return "application/xml";
-    else if (strcmp(extension, ".xul") == 0) return "application/vnd.mozilla.xul+xml";
-    else if (strcmp(extension, ".zip") == 0) return "application/zip";
-    else if (strcmp(extension, ".3gp") == 0) return "video/3gpp";
-    else if (strcmp(extension, ".3g2") == 0) return "video/3gpp2";
-    else if (strcmp(extension, ".7z") == 0) return "application/x-7z-compressed";
+    else if (strcmp(extension, ".aac") == 0)
+        return "audio/aac";
+    else if (strcmp(extension, ".abw") == 0)
+        return "application/x-abiword";
+    else if (strcmp(extension, ".apng") == 0)
+        return "image/apng";
+    else if (strcmp(extension, ".arc") == 0)
+        return "application/x-freearc";
+    else if (strcmp(extension, ".avif") == 0)
+        return "image/avif";
+    else if (strcmp(extension, ".avi") == 0)
+        return "video/x-msvideo";
+    else if (strcmp(extension, ".azw") == 0)
+        return "application/vnd.amazon.ebook";
+    else if (strcmp(extension, ".bin") == 0)
+        return "application/octet-stream";
+    else if (strcmp(extension, ".bmp") == 0)
+        return "image/bmp";
+    else if (strcmp(extension, ".bz") == 0)
+        return "application/x-bzip";
+    else if (strcmp(extension, ".bz2") == 0)
+        return "application/x-bzip2";
+    else if (strcmp(extension, ".cda") == 0)
+        return "application/x-cdf";
+    else if (strcmp(extension, ".csh") == 0)
+        return "application/x-csh";
+    else if (strcmp(extension, ".css") == 0)
+        return "text/css";
+    else if (strcmp(extension, ".csv") == 0)
+        return "text/csv";
+    else if (strcmp(extension, ".doc") == 0)
+        return "application/msword";
+    else if (strcmp(extension, ".docx") == 0)
+        return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    else if (strcmp(extension, ".eot") == 0)
+        return "application/vnd.ms-fontobject";
+    else if (strcmp(extension, ".epub") == 0)
+        return "application/epub+zip";
+    else if (strcmp(extension, ".gz") == 0)
+        return "application/gzip";
+    else if (strcmp(extension, ".gif") == 0)
+        return "image/gif";
+    else if (strcmp(extension, ".htm") == 0)
+        return "text/html";
+    else if (strcmp(extension, ".html") == 0)
+        return "text/html";
+    else if (strcmp(extension, ".ico") == 0)
+        return "image/vnd.microsoft.icon";
+    else if (strcmp(extension, ".ics") == 0)
+        return "text/calendar";
+    else if (strcmp(extension, ".jar") == 0)
+        return "application/java-archive";
+    else if (strcmp(extension, ".jpeg") == 0)
+        return "image/jpeg";
+    else if (strcmp(extension, ".jpg") == 0)
+        return "image/jpeg";
+    else if (strcmp(extension, ".js") == 0)
+        return "text/javascript";
+    else if (strcmp(extension, ".json") == 0)
+        return "application/json";
+    else if (strcmp(extension, ".jsonld") == 0)
+        return "application/ld+json";
+    else if (strcmp(extension, ".md") == 0)
+        return "text/markdown";
+    else if (strcmp(extension, ".mid") == 0)
+        return "audio/midi";
+    else if (strcmp(extension, ".midi") == 0)
+        return "audio/midi";
+    else if (strcmp(extension, ".mjs") == 0)
+        return "text/javascript";
+    else if (strcmp(extension, ".mp3") == 0)
+        return "audio/mpeg";
+    else if (strcmp(extension, ".mp4") == 0)
+        return "video/mp4";
+    else if (strcmp(extension, ".mpeg") == 0)
+        return "video/mpeg";
+    else if (strcmp(extension, ".mpkg") == 0)
+        return "application/vnd.apple.installer+xml";
+    else if (strcmp(extension, ".odp") == 0)
+        return "application/vnd.oasis.opendocument.presentation";
+    else if (strcmp(extension, ".ods") == 0)
+        return "application/vnd.oasis.opendocument.spreadsheet";
+    else if (strcmp(extension, ".odt") == 0)
+        return "application/vnd.oasis.opendocument.text";
+    else if (strcmp(extension, ".oga") == 0)
+        return "audio/ogg";
+    else if (strcmp(extension, ".ogv") == 0)
+        return "video/ogg";
+    else if (strcmp(extension, ".ogx") == 0)
+        return "application/ogg";
+    else if (strcmp(extension, ".opus") == 0)
+        return "audio/ogg";
+    else if (strcmp(extension, ".otf") == 0)
+        return "font/otf";
+    else if (strcmp(extension, ".pdf") == 0)
+        return "application/pdf";
+    else if (strcmp(extension, ".php") == 0)
+        return "application/x-httpd-php";
+    else if (strcmp(extension, ".png") == 0)
+        return "image/png";
+    else if (strcmp(extension, ".ppt") == 0)
+        return "application/vnd.ms-powerpoint";
+    else if (strcmp(extension, ".pptx") == 0)
+        return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+    else if (strcmp(extension, ".rar") == 0)
+        return "application/vnd.rar";
+    else if (strcmp(extension, ".rtf") == 0)
+        return "application/rtf";
+    else if (strcmp(extension, ".sh") == 0)
+        return "application/x-sh";
+    else if (strcmp(extension, ".svg") == 0)
+        return "image/svg+xml";
+    else if (strcmp(extension, ".tar") == 0)
+        return "application/x-tar";
+    else if (strcmp(extension, ".tif") == 0)
+        return "image/tiff";
+    else if (strcmp(extension, ".tiff") == 0)
+        return "image/tiff";
+    else if (strcmp(extension, ".ts") == 0)
+        return "video/mp2t";
+    else if (strcmp(extension, ".ttf") == 0)
+        return "font/ttf";
+    else if (strcmp(extension, ".txt") == 0)
+        return "text/plain";
+    else if (strcmp(extension, ".vsd") == 0)
+        return "application/vnd.visio";
+    else if (strcmp(extension, ".wav") == 0)
+        return "audio/wav";
+    else if (strcmp(extension, ".weba") == 0)
+        return "audio/webm";
+    else if (strcmp(extension, ".webm") == 0)
+        return "video/webm";
+    else if (strcmp(extension, ".webmanifest") == 0)
+        return "application/manifest+json";
+    else if (strcmp(extension, ".webp") == 0)
+        return "image/webp";
+    else if (strcmp(extension, ".woff") == 0)
+        return "font/woff";
+    else if (strcmp(extension, ".woff2") == 0)
+        return "font/woff2";
+    else if (strcmp(extension, ".xhtml") == 0)
+        return "application/xhtml+xml";
+    else if (strcmp(extension, ".xls") == 0)
+        return "application/vnd.ms-excel";
+    else if (strcmp(extension, ".xlsx") == 0)
+        return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    else if (strcmp(extension, ".xml") == 0)
+        return "application/xml";
+    else if (strcmp(extension, ".xul") == 0)
+        return "application/vnd.mozilla.xul+xml";
+    else if (strcmp(extension, ".zip") == 0)
+        return "application/zip";
+    else if (strcmp(extension, ".3gp") == 0)
+        return "video/3gpp";
+    else if (strcmp(extension, ".3g2") == 0)
+        return "video/3gpp2";
+    else if (strcmp(extension, ".7z") == 0)
+        return "application/x-7z-compressed";
 
-    else return "application/octet-stream";
+    else
+        return "application/octet-stream";
 }
