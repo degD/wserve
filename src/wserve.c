@@ -888,26 +888,6 @@ int is_server_settings_set()
 }
 
 /**
- * @brief Send a response with only a status code and response text.
- *
- * @param[in] newfd Connected socket file descriptor.
- * @param[in] status_code Three-digit status code.
- * @param[in] response_text Response text explaining status code.
- *
- * @note This function does not validate `status_code` and can therefore
- *       send invalid values.
- */
-void send_http_response_status(int newfd, char *status_code, char *response_text)
-{
-    size_t n = strlen("HTTP/1.1") + 1 + strlen(status_code) + 1 + strlen(response_text) + 4 + 1;
-    char *msg = malloc(n * sizeof(char));
-
-    snprintf(msg, n, "HTTP/1.1 %s %s\r\n\r\n", status_code, response_text);
-    _send(newfd, msg, n-1);
-    free(msg);
-}
-
-/**
  * @brief Receive a message through the end of its HTTP header section.
  *
  * Reads chunks until `CRLFCRLF` is received or an error occurs. The receive
@@ -1034,7 +1014,6 @@ void wserve_http()
         if (!fork())
         {
             close(listenfd);
-            int is_hr;
             char *http_msg;
             char *http_body;
             char *response_str;
@@ -1050,26 +1029,6 @@ void wserve_http()
                 hr = parse_http_request(http_msg, msglen);
                 if (hr != NULL && hr->hrl != NULL)
                 {
-                    is_hr = validate_request(hr);
-                    switch (is_hr) {
-                        case 1:
-                            send_http_response_status(newfd, "501", "Not Implemented");
-                            break;
-                        case 2:
-                            send_http_response_status(newfd, "400", "Bad Request");
-                            break;
-                        case 3:
-                            send_http_response_status(newfd, "505", "HTTP Version Not Supported");
-                            break;
-                    }
-                    if (is_hr != 0)
-                    {
-                        close(newfd);
-                        free(http_msg);
-                        free_http_request(hr);
-                        exit(0);
-                    }
-
                     response = process_http_requests(hr, root);
                     n = tostring_http_response(response, &response_str);
                     if (n > 0)
@@ -1163,16 +1122,27 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr, char *root)
     if (hr == NULL || hr->hrl == NULL)
         return NULL;
 
+    int is_hr;
     char *buf;
     char *ext = NULL, *mime = NULL;
     ssize_t n;
+
+    is_hr = validate_request(hr);
+    switch (is_hr) {
+        case 1:
+            return init_http_response("501", "Not Implemented", NULL, 0, NULL, 0);
+        case 2:
+            return init_http_response("400", "Bad Request", NULL, 0, NULL, 0);
+        case 3:
+            return init_http_response("505", "HTTP Version Not Supported", NULL, 0, NULL, 0);
+    }
 
     if (strcmp(hr->hrl->method, "GET") == 0)
     {
         n = read_static_file(root, hr->hrl->target, &buf, &ext);
         mime = mime_type(ext);
         if (n == -1 || mime == NULL)
-            return init_http_response("404", "Not found", NULL, 0, NULL, 0);
+            return init_http_response("404", "Not Found", NULL, 0, NULL, 0);
         else
         {
             int nh = 0;
@@ -1191,7 +1161,7 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr, char *root)
         n = read_static_file(root, hr->hrl->target, &buf, &ext);
         mime = mime_type(ext);
         if (n == -1 || mime == NULL)
-            return init_http_response("404", "Not found", NULL, 0, NULL, 0);
+            return init_http_response("404", "Not Found", NULL, 0, NULL, 0);
         else
         {
             int nh = 0;
