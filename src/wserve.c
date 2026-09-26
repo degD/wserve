@@ -1102,6 +1102,29 @@ ssize_t recv_http_body_content_length(
 }
 
 /**
+ * @brief Convert an unsigned long integer to string and return a pointer to it.
+ *
+ * @param[in] n Unsigned long integer to be converted.
+ *
+ * @return Pointer to converted NUL-Terminated string.
+ */
+char *itoa_str(unsigned long n)
+{
+    char *s;
+    size_t len = 0;
+
+    while (n > 0)
+    {
+        n = n / 10;
+        len++;
+    }
+
+    s = malloc((len+1) * sizeof(char));
+    snprintf(s, len+1, "%ld", n);
+    return s;
+}
+
+/**
  * @brief Create a response for a parsed HTTP request.
  *
  * `GET` and `HEAD` requests are served from the configured static-file root.
@@ -1130,13 +1153,17 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr, char *root)
     is_hr = validate_request(hr);
     switch (is_hr) {
         case 1:
+            // method not supported
             return init_http_response("501", "Not Implemented", NULL, 0, NULL, 0);
         case 2:
+            // malformed request
             return init_http_response("400", "Bad Request", NULL, 0, NULL, 0);
         case 3:
+            // version not supported
             return init_http_response("505", "HTTP Version Not Supported", NULL, 0, NULL, 0);
     }
 
+    // either GET, HEAD, or POST
     if (strcmp(hr->hrl->method, "GET") == 0)
     {
         n = read_static_file(root, hr->hrl->target, &buf, &ext);
@@ -1147,12 +1174,12 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr, char *root)
         {
             int nh = 0;
             char **h = NULL;
-            char val[65];
+            char *val = itoa_str(n);
 
-            sprintf(val, "%ld", n);
             h = append_to_headers_list(h, &nh, "content-length", val);
             h = append_to_headers_list(h, &nh, "content-type", mime);
 
+            free(ext);
             return init_http_response("200", "OK", buf, n, h, 2);
         }
     }
@@ -1166,16 +1193,17 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr, char *root)
         {
             int nh = 0;
             char **h = NULL;
-            char val[65];
+            char *val = itoa_str(n);
 
-            sprintf(val, "%ld", n);
             h = append_to_headers_list(h, &nh, "content-length", val);
             h = append_to_headers_list(h, &nh, "content-type", mime);
 
+            free(ext);
             return init_http_response("200", "OK", NULL, 0, h, 2);
         }
     }
     else
+        // TODO: Implement POST
         return init_http_response("418", "I'm a teapod", NULL, 0, NULL, 0);
 }
 
