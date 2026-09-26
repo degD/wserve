@@ -140,4 +140,27 @@ char *get_extension(char *path);
 char *mime_type(char *extension);
 
 
+// ###################
+// # DYNAMIC ROUTING #
+// ###################
+
+typedef struct HTTP_ROUTE
+{
+    char *route;
+    char *method;
+    HTTP_RESPONSE *(*callback)(HTTP_REQUEST *hr);
+    struct HTTP_ROUTE *next;
+    struct HTTP_ROUTE *prev;
+}
+HTTP_ROUTE;
+
+typedef struct HTTP_ROUTES_LIST
+{
+    HTTP_ROUTE *head;
+    HTTP_ROUTE *tail;
+    size_t len;
+}
+HTTP_ROUTES_LIST;
+
+
 #endif

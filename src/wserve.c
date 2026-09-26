@@ -1588,3 +1588,121 @@ char *mime_type(char *extension)
     else
         return "application/octet-stream";
 }
+
+
+// ###################
+// # DYNAMIC ROUTING #
+// ###################
+
+// global server routing list
+HTTP_ROUTES_LIST *_routes = NULL;
+
+void init_routes_list()
+{
+    if (_routes == NULL)
+    {
+        _routes = malloc(sizeof(HTTP_ROUTES_LIST));
+        _routes->head = NULL;
+        _routes->tail = NULL;
+        _routes->len = 0;
+    }
+}
+
+HTTP_ROUTE *init_route(char *route, char *method, HTTP_RESPONSE *(*callback)(HTTP_REQUEST *hr))
+{
+    HTTP_ROUTE *r = malloc(sizeof(HTTP_ROUTE));
+    r->route = route;
+    r->method = method;
+    r->callback = callback;
+    r->next = NULL;
+    r->prev = NULL;
+    return r;
+}
+
+int validate_route(HTTP_ROUTE *route)
+{
+    if (route == NULL || route->route == NULL || route->method == NULL) return 0;
+    if (strcmp(route->method, "GET") != 0 && strcmp(route->method, "POST") != 0)
+        return 0;
+    return 1;
+}
+
+HTTP_ROUTE *find_route(HTTP_ROUTE *t)
+{
+    if (validate_route(t) == 0) return NULL;
+
+    HTTP_ROUTE *r = _routes->head;
+    for (int i = 0; i < _routes->len; i++)
+    {
+        if (r == NULL) break;
+        if (
+            strcmp(r->route, t->route) == 0 &&
+            strcmp(r->method, t->method) == 0
+        )
+            return r;
+        r = r->next;
+    }
+    return NULL;
+}
+
+void add_route(HTTP_ROUTE *new_route)
+{
+    if (validate_route(new_route) == 0)
+    {
+        puts("route: Invalid route");
+        return;
+    }
+
+    HTTP_ROUTE *r = find_route(new_route);
+    if (r == NULL)
+    {
+        if (_routes->len == 0)
+        {
+            _routes->len = 1;
+            _routes->head = new_route;
+            _routes->tail = new_route;
+        }
+        else
+        {
+            _routes->len += 1;
+            _routes->tail->next = new_route;
+            new_route->prev = _routes->tail;
+            _routes->tail = new_route;
+        }
+    }
+    else
+        r->callback = new_route->callback;
+}
+
+void remove_route(HTTP_ROUTE *t)
+{
+    HTTP_ROUTE *r = find_route(t);
+    if (r != NULL)
+    {
+        if (r->prev == NULL)
+        {
+            _routes->head = r->next;
+            r->next->prev = NULL;
+        }
+        else if (r->next == NULL)
+        {
+            _routes->tail = r->prev;
+            r->prev->next = NULL;
+        }
+        else
+        {
+            r->prev->next = r->next;
+            r->next->prev = r->prev;
+        }
+        free(r);
+    }
+}
+
+HTTP_RESPONSE *process_dynamic_route(HTTP_ROUTE *t, HTTP_REQUEST *hr)
+{
+    HTTP_ROUTE *r = find_route(t);
+    if (r != NULL)
+        return r->callback(hr);
+    else
+        return init_http_response("404", "Not Found", NULL, 0, NULL, 0);
+}
