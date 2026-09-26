@@ -12,6 +12,8 @@ int main(void)
         ssize_t n = read_static_file(root, target, &buf, &ext);
         assert(n == 12);
         assert(strlen(buf) == 12);
+        assert(strcmp(ext, ".txt") == 0);
+        free(ext);
         free(buf);
         puts("[DONE] Read static file");
     }
