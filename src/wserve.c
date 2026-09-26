@@ -808,10 +808,9 @@ SERVER_SETTINGS *_settings = NULL;
  *
  * @param[in] hr Parsed request to be validated.
  *
- * @return
- * `0` if request is valid. `1` if method not supported.
- * `2` if malformed or unsupported headers. `3` if HTTP
- * version is unsuported.
+ * @return `0` if request is valid. `1` if method not supported.
+ *         `2` if malformed or unsupported headers. `3` if HTTP
+ *         version is unsuported.
  */
 int validate_request(HTTP_REQUEST *hr)
 {
@@ -889,6 +888,26 @@ int is_server_settings_set()
 }
 
 /**
+ * @brief Send a response with only a status code and response text.
+ *
+ * @param[in] newfd Connected socket file descriptor.
+ * @param[in] status_code Three-digit status code.
+ * @param[in] response_text Response text explaining status code.
+ *
+ * @note This function does not validate `status_code` and can therefore
+ *       send invalid values.
+ */
+void send_http_response_status(int newfd, char *status_code, char *response_text)
+{
+    size_t n = strlen("HTTP/1.1") + 1 + strlen(status_code) + 1 + strlen(response_text) + 4 + 1;
+    char *msg = malloc(n * sizeof(char));
+
+    snprintf(msg, n, "HTTP/1.1 %s %s\r\n\r\n", status_code, response_text);
+    _send(newfd, msg, n-1);
+    free(msg);
+}
+
+/**
  * @brief Receive a message through the end of its HTTP header section.
  *
  * Reads chunks until `CRLFCRLF` is received or an error occurs. The receive
@@ -908,7 +927,8 @@ int is_server_settings_set()
  *         the header is complete, or a socket/allocation error occurs.
  *
  * @note This function does not inspect `Content-Length` and may return before
- *       the complete body has been received.
+ *       the complete body has been received. Use along with
+ *       `recv_http_body_content_length` to receive the the whole request.
  */
 ssize_t http_recv(
     int newfd,
@@ -1014,6 +1034,7 @@ void wserve_http()
         if (!fork())
         {
             close(listenfd);
+            int is_hr;
             char *http_msg;
             char *http_body;
             char *response_str;
@@ -1029,6 +1050,26 @@ void wserve_http()
                 hr = parse_http_request(http_msg, msglen);
                 if (hr != NULL && hr->hrl != NULL)
                 {
+                    is_hr = validate_request(hr);
+                    switch (is_hr) {
+                        case 1:
+                            send_http_response_status(newfd, "501", "Not Implemented");
+                            break;
+                        case 2:
+                            send_http_response_status(newfd, "400", "Bad Request");
+                            break;
+                        case 3:
+                            send_http_response_status(newfd, "505", "HTTP Version Not Supported");
+                            break;
+                    }
+                    if (is_hr != 0)
+                    {
+                        close(newfd);
+                        free(http_msg);
+                        free_http_request(hr);
+                        exit(0);
+                    }
+
                     response = process_http_requests(hr, root);
                     n = tostring_http_response(response, &response_str);
                     if (n > 0)

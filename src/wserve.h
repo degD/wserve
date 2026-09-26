@@ -118,6 +118,7 @@ void init_server_settings(
     size_t max_recv_size,
     size_t total_req_size
 );
+void send_http_response_status(int newfd, char *status_code, char *response_text);
 ssize_t http_recv(
     int newfd,
     char **head,
