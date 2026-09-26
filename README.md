@@ -1,153 +1,99 @@
 
 # WSERVE: Educational Web Server in Pure C
 
-The goal of this project to build an education IPv4 web server in pure C. 
-Educational means it will not have any production use, and therefore
-code readability is more important than its security or efficiency.
+## uHTTP/1.1 (WIP)
 
-The web server will be able parse a subset of HTTP/1.1 commands.
-These commands are GET, HEAD, POST. So, there will also be a minimal
-parser for this project. Transfer-Encoding, conflicting duplicate 
-Content-Length values, malformed requests, oversized headers, and 
-oversized bodies will be automaticly rejected. Response codes will be
-implemented. For each connection, it will serve a single request and 
-response pair and close the connection, just as short-lived connections.
+**uHTTP (micro-HTTP)** is a custom HTTP/1.1 subset protocol. `wserve` supports uHTTP.
 
-There will be a routing table just like the way Flask works. Each route
-will have a path (/about), method (GET), and a corresponding handler 
-function. For example, the path (/about) could respond to GET requests 
-and send about.html. All will be configurable in C. It will return 404
-if route not found and 405 if route is not configured for the method.
-There will be static mounts for assets, and directory will be 
-configurable. Only serve files under project root. Reject empty, 
-absolute, `.`, and `..` path components and malformed percent encodings.
-Prevent symbolic-link escapes with descriptor-based traversal using 
-`openat()` and `O_NOFOLLOW`. Return `404` for missing files and 
-directories. Do not provide directory listings but provide index-file resolution.
-It will initially support a small explicit MIME map: HTML, CSS, 
-JavaScript, JSON, plain text, PNG, JPEG, SVG, and `application/octet-stream`.
+- Only supports GET, HEAD, POST methods.
+- Only IPv4.
+- Short-lived connections.
+- Only supports `Content-Length` header for body size.
+- Supports a large MIME set.
+- Requests with unsupported features will get rejected.
+- Rejections of unsupported features return `418 I'm a teapot`.
+- Return `404` if requested file does not exist.
+- Return `405` if requested route does exist.
 
-## v0.1 [COMPLETE]
+## MIME Types
 
-TCP server loop that accepts a connection, receives up to N bytes,
-sends a response, and closes the connection. 
-
-Compile the code with `make`. Run `./wserve` and send a message with
-`echo 123 | nc localhost 6666`. It is 4 chars as `echo` appends a 
-newline automatically.
-
-* https://beej.us/guide/bgnet/html/split/system-calls-or-bust.html#sendrecv
-* https://www.man7.org/linux/man-pages/man2/recv.2.html
-* https://www.man7.org/linux/man-pages/man2/send.2.html
-* https://www.man7.org/linux/man-pages/man7/signal.7.html
-
-## v0.2 [COMPLETE]
-
-Simple HTTP headers parser. Test set for the parser. Code management improvement.
-There is no separate validator, as parser itself validates the HTTP message. 
-Compile the simple test with `make test.parser`. Run test with `./test.parser`.
-
-* https://www.rfc-editor.org/info/rfc7230/#section-3.2
-* https://www.rfc-editor.org/info/rfc7230/#section-3.2.3
-* https://www.rfc-editor.org/info/rfc7230/#section-3.2.6
-* https://linux.die.net/man/3/strtok
-
-## v0.3 [COMPLETE]
-
-Server that accepts, parses and prints the HTTP request head. No responding.
-The request head is the part until the `CRLFCRLF`. The server closes the 
-connection after receiving the head. 
-
-* https://github.com/degD/zeroToHeroCorsProxyInC/blob/main/corsproxy/net.c
-
-## v0.4 [COMPLETE]
-
-Server that accepts and responds with a simple <200> status code to all requests.
-
-* https://www.rfc-editor.org/info/rfc7230/#section-3.1.2
-
-## v0.5 [COMPLETE]
-
-Request and response parsers. Parsing the request and extracting the method. Struct to
-represent HTTP requests, struct to represent HTTP responses. Respective tests.
-
-## v0.6 [COMPLETE]
-
-Recognition of GET and HEAD requests. Demo responses. Rejection of other
-request methods with suitable status codes. Build and run `./wserve`. Visit
-[localhost:6600](http://localhost:6600/) to see the server in action.
-
-## v0.7 [COMPLETE]
-
-Static routing from a predefined root folder. Server will respond to GET and HEAD
-requests only, and send a `418 I'm a teapot` status code if tried to access with
-another method. It will send `404 Not found` if route file is not found. GET queries 
-are ignored. Only checks method and request target route. Initially, only plain text 
-is supported.
-
-* https://stackoverflow.com/a/146938/19962636
-* https://www.man7.org/linux/man-pages/man2/stat.2.html
-* https://en.cppreference.com/c/io/fopen
-* https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/418
-* https://datatracker.ietf.org/doc/html/rfc2324
-
-## v0.8 [COMPLETE]
-
-Reject empty, absolute, `.`, and `..` path components and malformed percent encodings.
-Prevent symbolic-link escapes with descriptor-based traversal using 
-`openat()` and `O_NOFOLLOW`. Return `404` for missing files and 
-directories. Do not provide directory listings or index-file resolution.
-Static routing path generation hardening. Only support `origin-form` with
-relative targets.
-
-* https://www.rfc-editor.org/rfc/rfc9112.html#name-request-target
-* https://www.rfc-editor.org/rfc/rfc9112.html#section-3.2.1
-* https://stackoverflow.com/a/23242061
-* https://shinglyu.com/web/2025/07/22/why-the-percent-sign-breaks-your-website-and-how-to-fix-it.html
-* https://www.man7.org/linux/man-pages/man2/openat.2.html
-* https://www.man7.org/linux/man-pages/man3/perror.3.html
-* https://linux.die.net/man/2/openat
-* https://linux.die.net/man/3/fdopen
-* https://www.man7.org/linux/man-pages/man2/stat.2.html
-* https://www.man7.org/linux/man-pages/man3/stat.3type.html
-
-## v0.9 [COMPLETE]
-
-Support common MIME map: HTML, CSS, JavaScript, JSON, plain text, 
-PNG, JPEG, SVG, and `application/octet-stream`, etc.
-
-* https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/MIME_types/Common_types
-* https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/MIME_types
-* https://datatracker.ietf.org/doc/html/rfc6838
-* https://www.iana.org/assignments/media-types
-
-## v0.10
-
-Detailed unit tests. Refactor of libraries. E2E testing for static hosting. LLM code
-review. Documentation rewrite. Plan update. Write a specification of this HTTP/1.1 subset.
-
-* https://en.wikipedia.org/wiki/Glibc
-* https://www.man7.org/linux/man-pages/man2/openat2.2.html
-* https://www.man7.org/linux/man-pages/man2/open_how.2type.html
-* https://stackoverflow.com/a/4182564/19962636
-
-## v0.11
-
-Simple request validations. Transfer-Encoding, conflicting duplicate 
-Content-Length values, malformed requests, oversized headers, and 
-oversized bodies will be automaticly rejected. Methods other than 
-GET, HEAD, POST will get rejected. For POST, a `418 I'm a teapot` 
-response will be sent for now. Implement HTTP version validation
-for rejection of connections as well.
-
-## v0.12
-
-Implement POST. There will be a routing table just like the way Flask works. 
-Each route will have a path (/about), method (GET), and a corresponding handler 
-function. For example, the path (/about) could respond to GET requests 
-and send `about.html`. All will be configurable in C. May require breaking
-in smaller pieces.
-
-## v0.13
-
-Write a documentation. Write a specification of this HTTP/1.1 subset.
+- application/octet-stream
+- audio/aac
+- application/x-abiword
+- image/apng
+- application/x-freearc
+- image/avif
+- video/x-msvideo
+- application/vnd.amazon.ebook
+- application/octet-stream
+- image/bmp
+- application/x-bzip
+- application/x-bzip2
+- application/x-cdf
+- application/x-csh
+- text/css
+- text/csv
+- application/msword
+- application/vnd.openxmlformats-officedocument.wordprocessingml.document
+- application/vnd.ms-fontobject
+- application/epub+zip
+- application/gzip
+- image/gif
+- text/html
+- text/html
+- image/vnd.microsoft.icon
+- text/calendar
+- application/java-archive
+- image/jpeg
+- image/jpeg
+- text/javascript
+- application/json
+- application/ld+json
+- text/markdown
+- audio/midi
+- audio/midi
+- text/javascript
+- audio/mpeg
+- video/mp4
+- video/mpeg
+- application/vnd.apple.installer+xml
+- application/vnd.oasis.opendocument.presentation
+- application/vnd.oasis.opendocument.spreadsheet
+- application/vnd.oasis.opendocument.text
+- audio/ogg
+- video/ogg
+- application/ogg
+- audio/ogg
+- font/otf
+- application/pdf
+- application/x-httpd-php
+- image/png
+- application/vnd.ms-powerpoint
+- application/vnd.openxmlformats-officedocument.presentationml.presentation
+- application/vnd.rar
+- application/rtf
+- application/x-sh
+- image/svg+xml
+- application/x-tar
+- image/tiff
+- image/tiff
+- video/mp2t
+- font/ttf
+- text/plain
+- application/vnd.visio
+- audio/wav
+- audio/webm
+- video/webm
+- application/manifest+json
+- image/webp
+- font/woff
+- font/woff2
+- application/xhtml+xml
+- application/vnd.ms-excel
+- application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+- application/xml
+- application/vnd.mozilla.xul+xml
+- application/zip
+- video/3gpp
+- video/3gpp2
+- application/x-7z-compressed
