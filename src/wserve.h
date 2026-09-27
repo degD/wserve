@@ -162,5 +162,16 @@ typedef struct HTTP_ROUTES_LIST
 }
 HTTP_ROUTES_LIST;
 
+void init_routes_list();
+HTTP_ROUTE *init_route(
+    char *route, char *method,
+    HTTP_RESPONSE *(*callback)(HTTP_REQUEST *hr)
+);
+int validate_route(HTTP_ROUTE *route);
+HTTP_ROUTE *find_route(HTTP_ROUTE *t);
+void add_route(HTTP_ROUTE *new_route);
+void remove_route(HTTP_ROUTE *t);
+HTTP_RESPONSE *process_dynamic_route(HTTP_ROUTE *t, HTTP_REQUEST *hr);
+
 
 #endif
