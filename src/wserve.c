@@ -980,13 +980,12 @@ ssize_t http_recv(
  */
 void wserve_http()
 {
-    char *root, *port;
+    char *port;
     int backlog;
     int listenfd;
 
     if (!is_server_settings_set())
         exit(1);
-    root = _settings->root;
     port = _settings->port;
     backlog = _settings->backlog;
 
@@ -1149,7 +1148,6 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr)
         return NULL;
 
     int is_hr;
-    char *root = _settings->root;
     char *buf;
     char *ext = NULL, *mime = NULL;
     ssize_t n;

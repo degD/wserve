@@ -1,99 +1,84 @@
 
-# WSERVE: Educational Web Server in Pure C
+# WSERVE: Static Web Server in Pure C
 
-## uHTTP/1.1 (WIP)
+This is a static IPv4 Linux web server written in pure C. No external libraries used. Even the parser is written in pure C. It supports a subset of HTTP/1.1. The target goal is to build a WSGI web application framework, like Flask, that will support GET, HEAD, POST methods. Future goals are HTTPS support through [bearSSL](https://www.bearssl.org/), `Transfer-Encoding` support, extensive E2E testing and a stable release.
 
-**uHTTP (micro-HTTP)** is a custom HTTP/1.1 subset protocol. `wserve` supports uHTTP.
+## Features
 
-- Only supports GET, HEAD, POST methods.
-- Only IPv4.
-- Short-lived connections.
-- Only supports `Content-Length` header for body size.
-- Supports a large MIME set.
-- Requests with unsupported features will get rejected.
-- Rejections of unsupported features return `418 I'm a teapot`.
-- Return `404` if requested file does not exist.
-- Return `405` if requested route does exist.
+- IPv4 supported.
+- Pure C.
+- HTTP/1.1 subset.
+- GET and HEAD supported. POST is planned.
+- Static serving.
+- Extensive MIME types support.
+- Automatic rejection of malformed requests.
+- Prevention of static directory escape.
+- Extensive error responses.
 
-## MIME Types
+## Roadmap
 
-- application/octet-stream
-- audio/aac
-- application/x-abiword
-- image/apng
-- application/x-freearc
-- image/avif
-- video/x-msvideo
-- application/vnd.amazon.ebook
-- application/octet-stream
-- image/bmp
-- application/x-bzip
-- application/x-bzip2
-- application/x-cdf
-- application/x-csh
-- text/css
-- text/csv
-- application/msword
-- application/vnd.openxmlformats-officedocument.wordprocessingml.document
-- application/vnd.ms-fontobject
-- application/epub+zip
-- application/gzip
-- image/gif
-- text/html
-- text/html
-- image/vnd.microsoft.icon
-- text/calendar
-- application/java-archive
-- image/jpeg
-- image/jpeg
-- text/javascript
-- application/json
-- application/ld+json
-- text/markdown
-- audio/midi
-- audio/midi
-- text/javascript
-- audio/mpeg
-- video/mp4
-- video/mpeg
-- application/vnd.apple.installer+xml
-- application/vnd.oasis.opendocument.presentation
-- application/vnd.oasis.opendocument.spreadsheet
-- application/vnd.oasis.opendocument.text
-- audio/ogg
-- video/ogg
-- application/ogg
-- audio/ogg
-- font/otf
-- application/pdf
-- application/x-httpd-php
-- image/png
-- application/vnd.ms-powerpoint
-- application/vnd.openxmlformats-officedocument.presentationml.presentation
-- application/vnd.rar
-- application/rtf
-- application/x-sh
-- image/svg+xml
-- application/x-tar
-- image/tiff
-- image/tiff
-- video/mp2t
-- font/ttf
-- text/plain
-- application/vnd.visio
-- audio/wav
-- audio/webm
-- video/webm
-- application/manifest+json
-- image/webp
-- font/woff
-- font/woff2
-- application/xhtml+xml
-- application/vnd.ms-excel
-- application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
-- application/xml
-- application/vnd.mozilla.xul+xml
-- application/zip
-- video/3gpp
-- video/3gpp2
-- application/x-7z-compressed
+- [x] TCP Server
+- [x] HTTP Parser
+- [x] Static Routing
+- [ ] Dynamic Routing
+
+For detailed version roadmap, see [PLAN.md](PLAN.md).
+
+## Disclaimer
+
+This is a learning project by a single developer. Use it only as a reference. It is highly discouraged to use it in production, or even if personal, in open web. It has a relatively small test set with quick code inspection using some LLMs. There are much better HTTP server implementations available in C out there. If you really want to use it in production, or in open web, that is entirely on you.
+
+## Installation
+
+1. `git clone https://github.com/degD/wserve`
+2. `cd wserve`
+3. `make`
+4. `./wserve`
+
+To run unit tests:
+
+1. `make test.parser && ./test.parser`
+2. `make test.static && ./test.static`
+
+## Configuration
+
+By default, the web server runs on port `6543` ([http://localhost:6543](http://localhost:6543)) and uses `test/static` as the root of the static assets. `test/static` includes a demo site. After compiling and running, visit this site to see the server in action. Server defaults are set by using the function `init_server_settings`. Modify the call of `init_server_settings` in `main.c` to change the configuration and compile again.
+
+![wserve demo page](wserve.png)
+
+```c
+init_server_settings(
+    "test/static", 
+    "6543", 
+    100, 
+    1024, 
+    1024*1024
+);
+```
+
+- **root**: The directory of static assets.
+- **port**: Port the server will listen.
+- **backlog**: Max number of requests to be kept on the queue. 
+- **max_recv_size**: Max number of bytes to receive in a single step.
+- **total_req_size**: Max size of a request.
+
+## Source
+
+The source code consists of a single file: `wserve.c`. Inside, the code is divided roughly into 5 sections. As the time of writing, `DYNAMIC ROUTING` section is in progress:
+
+- `SERVER TCP FUNCTIONS`
+- `HTTP HEADERS PARSER`
+- `HTTP SERVER`
+- `STATIC ROUTING`
+- `DYNAMIC ROUTING`
+
+## Credits
+
+- [https://beej.us/guide/bgnet/html/split/](https://beej.us/guide/bgnet/html/split/)
+- [https://www.rfc-editor.org/info/rfc7230](https://www.rfc-editor.org/info/rfc7230)
+
+For detailed credits for of each development version, see [PLAN.md](PLAN.md).
+
+## License
+
+MIT
