@@ -1022,7 +1022,7 @@ void wserve_http()
                 hr = parse_http_request(http_msg, msglen);
                 if (hr != NULL && hr->hrl != NULL)
                 {
-                    response = process_http_requests(hr, root);
+                    response = process_http_requests(hr);
                     n = tostring_http_response(response, &response_str);
                     if (n > 0)
                         _send(newfd, response_str, n);
@@ -1142,12 +1142,14 @@ char *itoa_str(unsigned long n)
  * @note The caller owns the returned response and should release it with
  *       `free_http_response()`.
  */
-HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr, char *root)
+HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr)
 {
+    if (!is_server_settings_set()) return NULL;
     if (hr == NULL || hr->hrl == NULL)
         return NULL;
 
     int is_hr;
+    char *root = _settings->root;
     char *buf;
     char *ext = NULL, *mime = NULL;
     ssize_t n;
@@ -1168,7 +1170,7 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr, char *root)
     // either GET, HEAD, or POST
     if (strcmp(hr->hrl->method, "GET") == 0)
     {
-        n = read_static_file(root, hr->hrl->target, &buf, &ext);
+        n = read_static_file(hr->hrl->target, &buf, &ext);
         mime = mime_type(ext);
         if (n == -1 || mime == NULL)
             return init_http_response("404", "Not Found", NULL, 0, NULL, 0);
@@ -1187,7 +1189,7 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr, char *root)
     }
     else if (strcmp(hr->hrl->method, "HEAD") == 0)
     {
-        n = read_static_file(root, hr->hrl->target, &buf, &ext);
+        n = read_static_file(hr->hrl->target, &buf, &ext);
         mime = mime_type(ext);
         if (n == -1 || mime == NULL)
             return init_http_response("404", "Not Found", NULL, 0, NULL, 0);
@@ -1276,9 +1278,12 @@ long openat2(int dirfd, const char *path, struct open_how *how, size_t size)
  * @note On success, the caller owns both `*buf` and `*extension` and must
  *       free them. Binary file data may contain embedded NUL bytes.
  */
-int read_static_file(char *root, char *target, char **buf, char **extension)
+int read_static_file(char *target, char **buf, char **extension)
 {
+    if (!is_server_settings_set()) return -1;
+
     int c;
+    char *root = _settings->root;
     char *ext = NULL;
     long i, len;
     int dirfd, fd, tmp;
@@ -1608,8 +1613,10 @@ void init_routes_list()
     }
 }
 
-HTTP_ROUTE *init_route(char *route, char *method, HTTP_RESPONSE *(*callback)(HTTP_REQUEST *hr))
-{
+HTTP_ROUTE *init_route(
+    char *route, char *method,
+    HTTP_RESPONSE *(*callback)(HTTP_REQUEST *hr)
+) {
     HTTP_ROUTE *r = malloc(sizeof(HTTP_ROUTE));
     r->route = route;
     r->method = method;
@@ -1705,4 +1712,66 @@ HTTP_RESPONSE *process_dynamic_route(HTTP_ROUTE *t, HTTP_REQUEST *hr)
         return r->callback(hr);
     else
         return init_http_response("404", "Not Found", NULL, 0, NULL, 0);
+}
+
+ssize_t extract_query_parameters(HTTP_REQUEST *hr, char ***params, char **abs_target)
+{
+    if (hr == NULL || hr->hrl == NULL) return -1;
+
+    size_t n = 0;
+    char *saveptr;
+    char *query_string;
+    char *query;
+    char *key, *val, *tmp;
+
+    tmp = split_str(hr->hrl->target, "?", &saveptr);
+    *abs_target = malloc((strlen(tmp)+1) * sizeof(char));
+    strcpy(*abs_target, tmp);
+
+    query_string = split_str(NULL, "?", &saveptr);
+    if (query_string == NULL) return 0;
+
+    *params = NULL;
+    query = split_str(query_string, "&", &saveptr);
+    while (query != NULL)
+    {
+        key = split_str(query, "=", &val);
+        if (key != NULL && val != NULL)
+        {
+            *params = realloc(*params, sizeof(char*) * (2*(n+1)));
+            (*params)[2*n] = malloc((strlen(key)+1) * sizeof(char));
+            (*params)[2*n+1] = malloc((strlen(val)+1) * sizeof(char));
+            strcpy((*params)[2*n], key);
+            strcpy((*params)[2*n+1], val);
+        }
+        else return -1;
+    }
+    return n;
+}
+
+HTTP_RESPONSE *generate_static_response(char *path)
+{
+    ssize_t n;
+    char *buf;
+    char *ext = NULL;
+    char *mime = NULL;
+
+    if(!is_server_settings_set()) return NULL;
+
+    n = read_static_file(path, &buf, &ext);
+    mime = mime_type(ext);
+    if (n == -1 || mime == NULL)
+        return init_http_response("404", "Not Found", NULL, 0, NULL, 0);
+    else
+    {
+        int nh = 0;
+        char **h = NULL;
+        char *val = itoa_str(n);
+
+        h = append_to_headers_list(h, &nh, "content-length", val);
+        h = append_to_headers_list(h, &nh, "content-type", mime);
+
+        free(ext);
+        return init_http_response("200", "OK", buf, n, h, 2);
+    }
 }

@@ -127,7 +127,7 @@ ssize_t http_recv(
 );
 void wserve_http();
 char *itoa_str(unsigned long n);
-HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr, char *root);
+HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr);
 
 
 // ##################
@@ -135,7 +135,7 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr, char *root);
 // ##################
 
 int validate_target_path(char *target);
-int read_static_file(char *root, char *target, char **buf, char **extension);
+int read_static_file(char *target, char **buf, char **extension);
 char *get_extension(char *path);
 char *mime_type(char *extension);
 
@@ -172,6 +172,7 @@ HTTP_ROUTE *find_route(HTTP_ROUTE *t);
 void add_route(HTTP_ROUTE *new_route);
 void remove_route(HTTP_ROUTE *t);
 HTTP_RESPONSE *process_dynamic_route(HTTP_ROUTE *t, HTTP_REQUEST *hr);
+ssize_t extract_query_parameters(HTTP_REQUEST *hr, char ***params, char **abs_target);
 
 
 #endif
