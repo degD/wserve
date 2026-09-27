@@ -15,6 +15,15 @@ This is a static IPv4 Linux web server written in pure C. No external libraries 
 - Prevention of static directory escape.
 - Extensive error responses.
 
+## Not supported
+
+- Dynamic routes
+- Functional `POST` handling
+- Keep-alive connections
+- HTTPS
+- Chunked transfer encoding
+- Production hardening or compatibility guarantees
+
 ## Roadmap
 
 - [x] TCP Server
@@ -27,6 +36,12 @@ For detailed version roadmap, see [PLAN.md](PLAN.md).
 ## Disclaimer
 
 This is a learning project by a single developer. Use it only as a reference. It is highly discouraged to use it in production, or even if personal, in open web. It has a relatively small test set with quick code inspection using some LLMs. There are much better HTTP server implementations available in C out there. If you really want to use it in production, or in open web, that is entirely on you.
+
+## Requirements
+
+- Linux kernel 5.6 or later (`openat2()` is required)
+- GCC
+- Make
 
 ## Installation
 

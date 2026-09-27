@@ -82,7 +82,7 @@ Support common MIME map: HTML, CSS, JavaScript, JSON, plain text, PNG, JPEG, SVG
 
 ## v0.10 [COMPLETE]
 
-Fix unit tests. Refactor of libraries. LLM code review. Documentation rewrite. Write a specification of this HTTP/1.1 subset.
+Fix unit tests. Refactor of libraries. LLM code review. Documentation rewrite.
 
 - https://en.wikipedia.org/wiki/Glibc
 - https://www.man7.org/linux/man-pages/man2/openat2.2.html
