@@ -1125,6 +1125,55 @@ char *itoa_str(unsigned long n)
     return s;
 }
 
+HTTP_RESPONSE *build_response_with_body(
+    char *content,
+    char *ext
+) {
+    if (content == NULL || ext == NULL) 
+        return NULL;
+
+    int nh = 0;
+    char **h = NULL;
+    char *val = itoa_str(strlen(content));
+    char *mime = mime_type(ext);
+
+    h = append_to_headers_list(h, &nh, "content-length", val);
+    h = append_to_headers_list(h, &nh, "content-type", mime);
+
+    return init_http_response("200", "OK", content, strlen(content), h, nh);
+}
+
+HTTP_RESPONSE *build_head_response(
+    char *content,
+    char *ext
+) {
+    if (content == NULL || ext == NULL) 
+        return NULL;
+
+    int nh = 0;
+    char **h = NULL;
+    char *val = itoa_str(strlen(content));
+    char *mime = mime_type(ext);
+
+    h = append_to_headers_list(h, &nh, "content-length", val);
+    h = append_to_headers_list(h, &nh, "content-type", mime);
+
+    return init_http_response("200", "OK", NULL, 0, h, nh);
+}
+
+HTTP_RESPONSE *build_status_response(char *status)
+{
+    char *resp_text = "Bad Request";
+    
+    if (strcmp(status, "501") == 0) resp_text = "Not Implemented";
+    else if (strcmp(status, "400") == 0) resp_text = "Bad Request";
+    else if (strcmp(status, "505") == 0) resp_text = "HTTP Version Not Supported";
+    else if (strcmp(status, "404") == 0) resp_text = "Not Found";
+    else if (strcmp(status, "418") == 0) resp_text = "I'm a teapod";
+
+    return init_http_response(status, resp_text, NULL, 0, NULL, 0);
+}
+
 /**
  * @brief Create a response for a parsed HTTP request.
  *
@@ -1156,13 +1205,13 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr)
     switch (is_hr) {
         case 1:
             // method not supported
-            return init_http_response("501", "Not Implemented", NULL, 0, NULL, 0);
+            build_status_response("501");
         case 2:
             // malformed request
-            return init_http_response("400", "Bad Request", NULL, 0, NULL, 0);
+            build_status_response("400");
         case 3:
             // version not supported
-            return init_http_response("505", "HTTP Version Not Supported", NULL, 0, NULL, 0);
+            build_status_response("505");
     }
 
     // either GET, HEAD, or POST
@@ -1171,42 +1220,22 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr)
         n = read_static_file(hr->hrl->target, &buf, &ext);
         mime = mime_type(ext);
         if (n == -1 || mime == NULL)
-            return init_http_response("404", "Not Found", NULL, 0, NULL, 0);
+            build_status_response("404");
         else
-        {
-            int nh = 0;
-            char **h = NULL;
-            char *val = itoa_str(n);
-
-            h = append_to_headers_list(h, &nh, "content-length", val);
-            h = append_to_headers_list(h, &nh, "content-type", mime);
-
-            free(ext);
-            return init_http_response("200", "OK", buf, n, h, 2);
-        }
+            return build_head_response(buf, ext);
     }
     else if (strcmp(hr->hrl->method, "HEAD") == 0)
     {
         n = read_static_file(hr->hrl->target, &buf, &ext);
         mime = mime_type(ext);
         if (n == -1 || mime == NULL)
-            return init_http_response("404", "Not Found", NULL, 0, NULL, 0);
+            build_status_response("404");
         else
-        {
-            int nh = 0;
-            char **h = NULL;
-            char *val = itoa_str(n);
-
-            h = append_to_headers_list(h, &nh, "content-length", val);
-            h = append_to_headers_list(h, &nh, "content-type", mime);
-
-            free(ext);
-            return init_http_response("200", "OK", NULL, 0, h, 2);
-        }
+            return build_head_response(buf, ext);
     }
     else
         // TODO: Implement POST
-        return init_http_response("418", "I'm a teapod", NULL, 0, NULL, 0);
+            build_status_response("418");
 }
 
 // ##################
@@ -1773,3 +1802,4 @@ HTTP_RESPONSE *generate_static_response(char *path)
         return init_http_response("200", "OK", buf, n, h, 2);
     }
 }
+
