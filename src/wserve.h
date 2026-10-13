@@ -127,6 +127,9 @@ ssize_t http_recv(
 );
 void wserve_http();
 char *itoa_str(unsigned long n);
+HTTP_RESPONSE *build_response_with_body(char *content, char *ext);
+HTTP_RESPONSE *build_head_response(char *content, char *ext);
+HTTP_RESPONSE *build_status_response(char *status);
 HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr);
 
 

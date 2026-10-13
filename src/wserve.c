@@ -1125,10 +1125,8 @@ char *itoa_str(unsigned long n)
     return s;
 }
 
-HTTP_RESPONSE *build_response_with_body(
-    char *content,
-    char *ext
-) {
+HTTP_RESPONSE *build_response_with_body(char *content, char *ext) 
+{
     if (content == NULL || ext == NULL) 
         return NULL;
 
@@ -1143,10 +1141,8 @@ HTTP_RESPONSE *build_response_with_body(
     return init_http_response("200", "OK", content, strlen(content), h, nh);
 }
 
-HTTP_RESPONSE *build_head_response(
-    char *content,
-    char *ext
-) {
+HTTP_RESPONSE *build_head_response(char *content, char *ext) 
+{
     if (content == NULL || ext == NULL) 
         return NULL;
 
@@ -1205,38 +1201,49 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr)
     switch (is_hr) {
         case 1:
             // method not supported
-            build_status_response("501");
+            return build_status_response("501");
         case 2:
             // malformed request
-            build_status_response("400");
+            return build_status_response("400");
         case 3:
             // version not supported
-            build_status_response("505");
+            return build_status_response("505");
     }
 
+    // request is valid. try if there is a route associated with this target.
+    // if there is no associated route, fallback to static file serving.
+    HTTP_ROUTE *t = init_route(hr->hrl->target, hr->hrl->method, NULL);
+    HTTP_ROUTE *r = find_route(t);
+    free(t);
+    if (r != NULL) 
+        return r->callback(hr);
+
+    // route does not exist. static file serving.
     // either GET, HEAD, or POST
     if (strcmp(hr->hrl->method, "GET") == 0)
     {
         n = read_static_file(hr->hrl->target, &buf, &ext);
         mime = mime_type(ext);
         if (n == -1 || mime == NULL)
-            build_status_response("404");
+            return build_status_response("404");
         else
-            return build_head_response(buf, ext);
+            return build_response_with_body(buf, ext);
     }
     else if (strcmp(hr->hrl->method, "HEAD") == 0)
     {
         n = read_static_file(hr->hrl->target, &buf, &ext);
         mime = mime_type(ext);
         if (n == -1 || mime == NULL)
-            build_status_response("404");
+            return build_status_response("404");
         else
             return build_head_response(buf, ext);
     }
     else
         // TODO: Implement POST
-            build_status_response("418");
+        return build_status_response("418");
+    
 }
+
 
 // ##################
 // # STATIC ROUTING #
