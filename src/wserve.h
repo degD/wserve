@@ -180,6 +180,7 @@ void add_route(HTTP_ROUTE *new_route);
 void remove_route(HTTP_ROUTE *t);
 HTTP_RESPONSE *process_dynamic_route(HTTP_ROUTE *t, HTTP_REQUEST *hr);
 ssize_t extract_query_parameters(HTTP_REQUEST *hr, char ***params, char **abs_target);
+char *smart_concat(char *s1, char *s2);
 
 
 // ##################

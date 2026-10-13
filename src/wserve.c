@@ -1022,6 +1022,8 @@ void wserve_http()
                 if (hr != NULL && hr->hrl != NULL)
                 {
                     response = process_http_requests(hr);
+                    if (response == NULL) return;
+
                     n = tostring_http_response(response, &response_str);
                     if (n > 0)
                         _send(newfd, response_str, n);
@@ -1195,6 +1197,7 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr)
     int is_hr;
     char *buf;
     char *ext = NULL, *mime = NULL;
+    char *target, **params;
     ssize_t n;
 
     is_hr = validate_request(hr);
@@ -1210,9 +1213,13 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr)
             return build_status_response("505");
     }
 
+    n = extract_query_parameters(hr, &params, &target);
+    puts(target);
+    if (n == -1) return NULL;
+
     // request is valid. try if there is a route associated with this target.
     // if there is no associated route, fallback to static file serving.
-    HTTP_ROUTE *t = init_route(hr->hrl->target, hr->hrl->method, NULL);
+    HTTP_ROUTE *t = init_route(target, hr->hrl->method, NULL);
     HTTP_ROUTE *r = find_route(t);
     free(t);
     if (r != NULL) 
@@ -1222,7 +1229,7 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr)
     // either GET, HEAD, or POST
     if (strcmp(hr->hrl->method, "GET") == 0)
     {
-        n = read_static_file(hr->hrl->target, &buf, &ext);
+        n = read_static_file(target, &buf, &ext);
         mime = mime_type(ext);
         if (n == -1 || mime == NULL)
             return build_status_response("404");
@@ -1231,7 +1238,7 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr)
     }
     else if (strcmp(hr->hrl->method, "HEAD") == 0)
     {
-        n = read_static_file(hr->hrl->target, &buf, &ext);
+        n = read_static_file(target, &buf, &ext);
         mime = mime_type(ext);
         if (n == -1 || mime == NULL)
             return build_status_response("404");
@@ -1765,8 +1772,12 @@ ssize_t extract_query_parameters(HTTP_REQUEST *hr, char ***params, char **abs_ta
     char *query_string;
     char *query;
     char *key, *val, *tmp;
+    char *target;
 
-    tmp = split_str(hr->hrl->target, "?", &saveptr);
+    target = malloc((strlen(hr->hrl->target) + 1) * sizeof(char));
+    strcpy(target, hr->hrl->target);
+    
+    tmp = split_str(target, "?", &saveptr);
     *abs_target = malloc((strlen(tmp)+1) * sizeof(char));
     strcpy(*abs_target, tmp);
 
@@ -1785,9 +1796,12 @@ ssize_t extract_query_parameters(HTTP_REQUEST *hr, char ***params, char **abs_ta
             (*params)[2*n+1] = malloc((strlen(val)+1) * sizeof(char));
             strcpy((*params)[2*n], key);
             strcpy((*params)[2*n+1], val);
+            n++;
         }
         else return -1;
+        query = split_str(NULL, "&", &saveptr);
     }
+    printf("%ld\n", n);
     return n;
 }
 
@@ -1816,5 +1830,14 @@ HTTP_RESPONSE *generate_static_response(char *path)
         free(ext);
         return init_http_response("200", "OK", buf, n, h, 2);
     }
+}
+
+char *smart_concat(char *s1, char *s2)
+{
+    if (s1 == NULL || s2 == NULL) return NULL;
+    char *sx = malloc((strlen(s1) + strlen(s2) + 1) * sizeof(char));
+    strcpy(sx, s1);
+    strcat(sx, s2);
+    return sx;
 }
 
