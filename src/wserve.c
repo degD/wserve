@@ -1686,6 +1686,14 @@ HTTP_ROUTE *find_route(HTTP_ROUTE *t)
     return NULL;
 }
 
+void add_init_route(
+    char *route, char *method,
+    HTTP_RESPONSE *(*callback)(HTTP_REQUEST *hr)
+) {
+    HTTP_ROUTE *r = init_route(route, method, callback);
+    add_route(r);
+}
+
 void add_route(HTTP_ROUTE *new_route)
 {
     if (validate_route(new_route) == 0)

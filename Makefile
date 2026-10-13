@@ -1,8 +1,8 @@
 CC = gcc -Wall -g
 
 # build wserve
-build: ./src/wserve.c ./src/wserve.h ./src/main.c
-	$(CC) ./src/wserve.c ./src/main.c  -o ./wserve
+build: ./src/wserve.c ./src/wserve.h ./src/main.c ./conf/routes.c
+	$(CC) ./src/wserve.c ./src/main.c ./conf/routes.c -o ./wserve
 
 # build parser test
 test.parser: ./src/wserve.c ./src/wserve.h ./test/parser.test.c

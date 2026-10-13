@@ -172,10 +172,21 @@ HTTP_ROUTE *init_route(
 );
 int validate_route(HTTP_ROUTE *route);
 HTTP_ROUTE *find_route(HTTP_ROUTE *t);
+void add_init_route(
+    char *route, char *method,
+    HTTP_RESPONSE *(*callback)(HTTP_REQUEST *hr)
+);
 void add_route(HTTP_ROUTE *new_route);
 void remove_route(HTTP_ROUTE *t);
 HTTP_RESPONSE *process_dynamic_route(HTTP_ROUTE *t, HTTP_REQUEST *hr);
 ssize_t extract_query_parameters(HTTP_REQUEST *hr, char ***params, char **abs_target);
+
+
+// ##################
+// # ROUTING CONFIG #
+// ##################
+
+void build_routing_table(void);
 
 
 #endif
