@@ -104,3 +104,11 @@ Implement POST. Implement JSON parsing.
 ## v0.14
 
 HTTPS support using BearSSL.
+
+## v0.15 
+
+Implement `Transfer-Encoding`. 
+
+## v0.16
+
+E2E testing. Unit testing. Memory safety. Bug fixing and release stability.

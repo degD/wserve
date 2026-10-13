@@ -1639,9 +1639,15 @@ char *mime_type(char *extension)
 // # DYNAMIC ROUTING #
 // ###################
 
-// global server routing list
+// Global list of registered HTTP routes.
 HTTP_ROUTES_LIST *_routes = NULL;
 
+/**
+ * @brief Initialize the global route list.
+ *
+ * Allocates the route-list object and initializes its head, tail, and length
+ * when the global list has not already been initialized.
+ */
 void init_routes_list()
 {
     if (_routes == NULL)
@@ -1653,6 +1659,18 @@ void init_routes_list()
     }
 }
 
+/**
+ * @brief Create a route entry.
+ *
+ * @param[in] route Route path.
+ * @param[in] method HTTP method.
+ * @param[in] callback Handler to invoke for matching requests.
+ *
+ * @return A pointer to the newly allocated route entry.
+ *
+ * @note The route and method strings are assigned directly; they are not
+ *       copied.
+ */
 HTTP_ROUTE *init_route(
     char *route, char *method,
     HTTP_RESPONSE *(*callback)(HTTP_REQUEST *hr)
@@ -1666,6 +1684,14 @@ HTTP_ROUTE *init_route(
     return r;
 }
 
+/**
+ * @brief Check whether a route entry has the required fields and method.
+ *
+ * @param[in] route Route entry to validate.
+ *
+ * @return Nonzero if the entry has a route and method and its method is
+ *         `GET` or `POST`; otherwise, returns `0`.
+ */
 int validate_route(HTTP_ROUTE *route)
 {
     if (route == NULL || route->route == NULL || route->method == NULL) return 0;
@@ -1674,6 +1700,14 @@ int validate_route(HTTP_ROUTE *route)
     return 1;
 }
 
+/**
+ * @brief Find a registered route matching a route path and method.
+ *
+ * @param[in] t Route entry providing the path and method to match.
+ *
+ * @return A pointer to the matching route entry, or `NULL` if the entry is
+ *         invalid or no match is found.
+ */
 HTTP_ROUTE *find_route(HTTP_ROUTE *t)
 {
     if (validate_route(t) == 0) return NULL;
@@ -1692,6 +1726,16 @@ HTTP_ROUTE *find_route(HTTP_ROUTE *t)
     return NULL;
 }
 
+/**
+ * @brief Create and register a route.
+ *
+ * Creates a route entry from the supplied path, method, and callback, then
+ * passes it to @ref add_route.
+ *
+ * @param[in] route Route path.
+ * @param[in] method HTTP method.
+ * @param[in] callback Handler to invoke for matching requests.
+ */
 void add_init_route(
     char *route, char *method,
     HTTP_RESPONSE *(*callback)(HTTP_REQUEST *hr)
@@ -1700,6 +1744,16 @@ void add_init_route(
     add_route(r);
 }
 
+/**
+ * @brief Add a route to the global route list or update an existing route.
+ *
+ * If a route with the same path and method is already registered, its callback
+ * is replaced. Otherwise, the new route is appended to the list.
+ *
+ * @param[in] new_route Route entry to add.
+ *
+ * @note Invalid route entries are not added.
+ */
 void add_route(HTTP_ROUTE *new_route)
 {
     if (validate_route(new_route) == 0)
@@ -1729,6 +1783,11 @@ void add_route(HTTP_ROUTE *new_route)
         r->callback = new_route->callback;
 }
 
+/**
+ * @brief Remove a matching route from the global route list.
+ *
+ * @param[in] t Route entry providing the path and method to match.
+ */
 void remove_route(HTTP_ROUTE *t)
 {
     HTTP_ROUTE *r = find_route(t);
@@ -1753,6 +1812,15 @@ void remove_route(HTTP_ROUTE *t)
     }
 }
 
+/**
+ * @brief Dispatch a request to its matching route handler.
+ *
+ * @param[in] t Route entry providing the path and method to match.
+ * @param[in] hr HTTP request passed to the route handler.
+ *
+ * @return The response returned by the matching route callback, or a
+ *         `404 Not Found` response if no matching route is registered.
+ */
 HTTP_RESPONSE *process_dynamic_route(HTTP_ROUTE *t, HTTP_REQUEST *hr)
 {
     HTTP_ROUTE *r = find_route(t);
@@ -1762,6 +1830,22 @@ HTTP_RESPONSE *process_dynamic_route(HTTP_ROUTE *t, HTTP_REQUEST *hr)
         return init_http_response("404", "Not Found", NULL, 0, NULL, 0);
 }
 
+/**
+ * @brief Extract the path and query parameters from an HTTP request target.
+ *
+ * Separates the target into an absolute path and an optional query string.
+ * Query parameters are returned as alternating key and value strings.
+ *
+ * @param[in] hr HTTP request containing the target to parse.
+ * @param[out] params Receives the allocated array of parameter strings.
+ *                    Entries are ordered as key, value, key, value, and so on.
+ * @param[out] abs_target Receives an allocated copy of the target path without
+ *                        the query string.
+ *
+ * @return The number of key-value pairs extracted, `0` if the target contains
+ *         no query string, or `-1` if the request or its request-line data is
+ *         unavailable or a parameter cannot be parsed.
+ */
 ssize_t extract_query_parameters(HTTP_REQUEST *hr, char ***params, char **abs_target)
 {
     if (hr == NULL || hr->hrl == NULL) return -1;
@@ -1812,6 +1896,19 @@ ssize_t extract_query_parameters(HTTP_REQUEST *hr, char ***params, char **abs_ta
     return n;
 }
 
+/**
+ * @brief Create an HTTP response containing a static file.
+ *
+ * Reads the file at the supplied path and, when its extension has a known MIME
+ * type, creates a `200 OK` response with content-length and content-type
+ * headers. If the file cannot be read or its MIME type is unavailable, creates
+ * a `404 Not Found` response.
+ *
+ * @param[in] path Path to the static file.
+ *
+ * @return A pointer to the generated response, or `NULL` if server settings
+ *         have not been set.
+ */
 HTTP_RESPONSE *generate_static_response(char *path)
 {
     ssize_t n;
@@ -1839,6 +1936,17 @@ HTTP_RESPONSE *generate_static_response(char *path)
     }
 }
 
+/**
+ * @brief Concatenate two strings into a newly allocated string.
+ *
+ * @param[in] s1 First string.
+ * @param[in] s2 Second string.
+ *
+ * @return A newly allocated string containing `s1` followed by `s2`, or
+ *         `NULL` if either input is `NULL`.
+ *
+ * @note The caller is responsible for freeing the returned string.
+ */
 char *smart_concat(char *s1, char *s2)
 {
     if (s1 == NULL || s2 == NULL) return NULL;
@@ -1848,6 +1956,16 @@ char *smart_concat(char *s1, char *s2)
     return sx;
 }
 
+/**
+ * @brief Find the value associated with a key in an alternating parameter array.
+ *
+ * @param[in] params Array containing alternating key and value strings.
+ * @param[in] n Number of key-value pairs in the array.
+ * @param[in] key Key to search for.
+ *
+ * @return The value corresponding to the first matching key, or `NULL` if the
+ *         key is not found.
+ */
 char *get_params_val_by_key(char **params, size_t n, char *key)
 {
     int i = 0;
