@@ -1214,7 +1214,6 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr)
     }
 
     n = extract_query_parameters(hr, &params, &target);
-    puts(target);
     if (n == -1) return NULL;
 
     // request is valid. try if there is a route associated with this target.
@@ -1776,7 +1775,7 @@ ssize_t extract_query_parameters(HTTP_REQUEST *hr, char ***params, char **abs_ta
 
     target = malloc((strlen(hr->hrl->target) + 1) * sizeof(char));
     strcpy(target, hr->hrl->target);
-    
+
     tmp = split_str(target, "?", &saveptr);
     *abs_target = malloc((strlen(tmp)+1) * sizeof(char));
     strcpy(*abs_target, tmp);
@@ -1801,7 +1800,6 @@ ssize_t extract_query_parameters(HTTP_REQUEST *hr, char ***params, char **abs_ta
         else return -1;
         query = split_str(NULL, "&", &saveptr);
     }
-    printf("%ld\n", n);
     return n;
 }
 
@@ -1841,3 +1839,14 @@ char *smart_concat(char *s1, char *s2)
     return sx;
 }
 
+char *get_params_val_by_key(char **params, size_t n, char *key)
+{
+    int i = 0;
+    while(i < n)
+    {
+        if (strcmp(params[i], key) == 0) 
+            return params[i+1];
+        i += 2;
+    }
+    return NULL;
+}

@@ -17,18 +17,17 @@ HTTP_RESPONSE *say_hello(HTTP_REQUEST *hr)
     ssize_t n;
 
     n = extract_query_parameters(hr, &params, &target);
-    printf("AAA: %ld\n", n);
     if (n < 0) 
         return build_status_response("400");
     else if (n == 0)
         return build_response_with_body("You have no name?!", ".txt");
     else 
     {
-        if (strcmp(params[0], "name") == 0)
+        char *name = get_params_val_by_key(params, n, "name");
+        if (name != NULL)
             return build_response_with_body(smart_concat("Nice name, ", params[1]), ".txt");
         else
             return build_response_with_body("I asked you your name?", ".txt");
-        // TODO: Params need a better data structure...
     }
 }
 
