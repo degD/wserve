@@ -24,8 +24,10 @@ HTTP_RESPONSE *say_hello(HTTP_REQUEST *hr)
     else 
     {
         char *name = get_params_val_by_key(params, n, "name");
+        for (int i = 0; i < 2*n; i++) printf("%s\n", params[i]);
+
         if (name != NULL)
-            return build_response_with_body(smart_concat("Nice name, ", params[1]), ".txt");
+            return build_response_with_body(smart_concat("Nice name, ", name), ".txt");
         else
             return build_response_with_body("I asked you your name?", ".txt");
     }

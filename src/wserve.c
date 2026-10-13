@@ -1772,23 +1772,32 @@ ssize_t extract_query_parameters(HTTP_REQUEST *hr, char ***params, char **abs_ta
     char *query;
     char *key, *val, *tmp;
     char *target;
+    char *empty = "";
 
+    // create a copy of target 
     target = malloc((strlen(hr->hrl->target) + 1) * sizeof(char));
     strcpy(target, hr->hrl->target);
 
+    // separate abs target
     tmp = split_str(target, "?", &saveptr);
     *abs_target = malloc((strlen(tmp)+1) * sizeof(char));
     strcpy(*abs_target, tmp);
 
+    // separate the query string
+    // if empty no params
     query_string = split_str(NULL, "?", &saveptr);
     if (query_string == NULL) return 0;
 
+    // iterate over query params
     *params = NULL;
     query = split_str(query_string, "&", &saveptr);
     while (query != NULL)
     {
         key = split_str(query, "=", &val);
-        if (key != NULL && val != NULL)
+        if (val == NULL) 
+            val = empty;
+
+        if (key != NULL)
         {
             *params = realloc(*params, sizeof(char*) * (2*(n+1)));
             (*params)[2*n] = malloc((strlen(key)+1) * sizeof(char));
@@ -1842,8 +1851,9 @@ char *smart_concat(char *s1, char *s2)
 char *get_params_val_by_key(char **params, size_t n, char *key)
 {
     int i = 0;
-    while(i < n)
+    while(i < 2*n)
     {
+        printf("%d: %s\n", i, params[i]);
         if (strcmp(params[i], key) == 0) 
             return params[i+1];
         i += 2;
