@@ -95,8 +95,12 @@ Simple request validations. Transfer-Encoding, conflicting duplicate Content-Len
 
 ## v0.12
 
-Implement POST. There will be a routing table just like the way Flask works. Each route will have a path (/about), method (GET), and a corresponding handler function. For example, the path (/about) could respond to GET requests and send `about.html`. All will be configurable in C. May require breaking in smaller pieces.
+Dynamic routing for GET and HEAD. Query parameters. Function documentations.
 
 ## v0.13
 
-Write a documentation. Write a specification of this HTTP/1.1 subset.
+Implement POST. Implement JSON parsing. 
+
+## v0.14
+
+HTTPS support using BearSSL.
