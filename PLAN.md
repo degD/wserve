@@ -93,7 +93,7 @@ Fix unit tests. Refactor of libraries. LLM code review. Documentation rewrite.
 
 Simple request validations. Transfer-Encoding, conflicting duplicate Content-Length values, malformed requests, oversized headers, and oversized bodies will be automaticly rejected. Methods other than GET, HEAD, POST will get rejected. Only HTTP/1.1 is supported.
 
-## v0.12
+## v0.12 [COMPLETE]
 
 Dynamic routing for GET and HEAD. Query parameters. Function documentations.
 
@@ -111,4 +111,4 @@ Implement `Transfer-Encoding`.
 
 ## v0.16
 
-E2E testing. Unit testing. Memory safety. Bug fixing and release stability.
+E2E testing. Unit testing. Memory safety. Bug fixing and release stability. Modularization.

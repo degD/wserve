@@ -1198,6 +1198,7 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr)
     char *buf;
     char *ext = NULL, *mime = NULL;
     char *target, **params;
+    char *method;
     ssize_t n;
 
     is_hr = validate_request(hr);
@@ -1218,11 +1219,24 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr)
 
     // request is valid. try if there is a route associated with this target.
     // if there is no associated route, fallback to static file serving.
-    HTTP_ROUTE *t = init_route(target, hr->hrl->method, NULL);
+    method = hr->hrl->method;
+    if (strcmp(method, "HEAD") == 0) 
+        method = "GET";
+    HTTP_ROUTE *t = init_route(target, method, NULL);
     HTTP_ROUTE *r = find_route(t);
     free(t);
     if (r != NULL) 
-        return r->callback(hr);
+    {
+        // if head request strip body of get response
+        HTTP_RESPONSE *response = r->callback(hr);
+        if (strcmp(hr->hrl->method, "HEAD") == 0)
+        {
+            response->body = NULL;
+            response->bodylen = 0;
+            free(response->body);
+        }
+        return response;
+    }    
 
     // route does not exist. static file serving.
     // either GET, HEAD, or POST
