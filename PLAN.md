@@ -99,7 +99,7 @@ Dynamic routing for GET and HEAD. Query parameters. Function documentations.
 
 ## v0.13
 
-Implement POST. Implement JSON parsing. 
+Implement POST. Implement JSON parsing. Test JSON parser.
 
 - https://en.wikipedia.org/wiki/JSON#Data_types
 - https://notes.eatonphil.com/writing-a-simple-json-parser.html

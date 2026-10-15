@@ -10,9 +10,10 @@
 
 /* 0: string
  * 1: number
- * 2: boolean
- * 3: null
- * 4: syntax
+ * 2: true
+ * 3: false
+ * 4: null
+ * 5: syntax
  */
 typedef struct JSON_TYPE
 {
@@ -24,12 +25,17 @@ JSON_TYPE;
 
 JSON_TYPE *json_lex_string(int *i, char *json_str, size_t json_len)
 {
-    int j;
+    int j, tmp = *i;
     char c, *data = malloc(json_len + 1);
     JSON_TYPE *token = malloc(sizeof(JSON_TYPE));
 
     if (json_str[*i] == '"') *i += 1;
-    else return NULL;
+    else
+    {
+        free(data);
+        free(token);
+        return NULL;
+    } 
 
     while ((c = json_str[*i]) != '\0')
     {
@@ -46,7 +52,85 @@ JSON_TYPE *json_lex_string(int *i, char *json_str, size_t json_len)
     }
 
     *i = -1;
+    printf("String at index %d is not terminated\n", tmp);
+    free(data);
+    free(token);
     return NULL;
+}
+
+
+JSON_TYPE *json_lex_number(int *i, char *json_str, size_t json_len)
+{
+    // TODO: Number parsing is an oversimplification of the required process. Read into it.
+
+    double data;
+    int j, tmp = *i;
+    char c, *data_str = malloc(json_len + 1);
+    JSON_TYPE *token = malloc(sizeof(JSON_TYPE));
+
+    while ((c = json_str[*i]) != '\0')
+    {
+        if (strchr("0123456789-.e", c) != NULL)
+            data_str[j] = c;
+        else
+            break;
+
+        *i += 1;
+        j += 1;
+    }
+
+    if (strlen(data_str) == 0)
+    {
+        free(data_str);
+        free(token);
+        return NULL;
+    }
+
+    token->type = 1;
+    data_str[j] = '\0';
+    data = strtod(data_str, NULL);
+    free(data_str);
+    return token;
+}
+
+
+JSON_TYPE *json_lex_bool(int *i, char *json_str, size_t json_len)
+{
+    int true_len = strlen("true");
+    int false_len = strlen("false");
+    int bool = -1;
+    JSON_TYPE *token = malloc(sizeof(JSON_TYPE));
+    token->data = NULL;
+
+    if (json_len >= true_len && strncmp(&json_str[*i], "true", true_len) == 0)
+        token->type = 2;
+    else if (json_len >= false_len && strncmp(&json_str[*i], "false", false_len) == 0)
+        token->type = 3;
+    else 
+    {
+        free(token);
+        return NULL;
+    }
+
+    return token;
+}
+
+
+JSON_TYPE *json_lex_null(int *i, char *json_str, size_t json_len)
+{
+    int null_len = strlen("null");
+    JSON_TYPE *token = malloc(sizeof(JSON_TYPE));
+    token->data = NULL;
+
+    if (json_len >= null_len && strncmp(&json_str[*i], "null", null_len) == 0)
+        token->type = 4;
+    else 
+    {
+        free(token);
+        return NULL;
+    }
+
+    return token;
 }
 
 
@@ -70,15 +154,39 @@ char **json_lex(char *json_str)
             continue;
         }
 
-        // other lexers...
+        token = json_lex_number(&i, json_str, json_len);
+        if (i == -1) return NULL;
+        else if (token != NULL) 
+        {
+            tokens = realloc(tokens, sizeof(JSON_TYPE) * (token_idx + 1));
+            tokens[token_idx] = token;
+            token_idx += 1;
+            continue;
+        }
 
-        if (json_str[i] == ' '  || 
-            json_str[i] == '\t' || 
-            json_str[i] == '\r' || 
-            json_str[i] == '\n'
-        )
-        i += 1;
+        token = json_lex_bool(&i, json_str, json_len);
+        if (i == -1) return NULL;
+        else if (token != NULL) 
+        {
+            tokens = realloc(tokens, sizeof(JSON_TYPE) * (token_idx + 1));
+            tokens[token_idx] = token;
+            token_idx += 1;
+            continue;
+        }
 
+        token = json_lex_null(&i, json_str, json_len);
+        if (i == -1) return NULL;
+        else if (token != NULL) 
+        {
+            tokens = realloc(tokens, sizeof(JSON_TYPE) * (token_idx + 1));
+            tokens[token_idx] = token;
+            token_idx += 1;
+            continue;
+        }
+
+
+        if (strchr(" \t\r\n", json_str[i]) != NULL)
+            i += 1;
         else if (1) // if json syntax (what are they?)
         {
             token = malloc(sizeof(JSON_TYPE));
@@ -91,7 +199,6 @@ char **json_lex(char *json_str)
             token_idx += 1;
             continue;
         }
-
         else 
         {
             printf("Unexpected character '%c' at index %d.\n", json_str[i], i);
