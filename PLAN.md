@@ -101,6 +101,9 @@ Dynamic routing for GET and HEAD. Query parameters. Function documentations.
 
 Implement POST. Implement JSON parsing. 
 
+- https://en.wikipedia.org/wiki/JSON#Data_types
+- https://notes.eatonphil.com/writing-a-simple-json-parser.html
+
 ## v0.14
 
 HTTPS support using BearSSL.
