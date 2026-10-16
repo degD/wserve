@@ -29,7 +29,7 @@ JSON_TYPE *json_lex_string(int *i, char *json_str, size_t json_len);
 JSON_TYPE *json_lex_number(int *i, char *json_str, size_t json_len);
 JSON_TYPE *json_lex_bool(int *i, char *json_str, size_t json_len);
 JSON_TYPE *json_lex_null(int *i, char *json_str, size_t json_len);
-char **json_lex(char *json_str);
+int json_lex(char *json_str, JSON_TYPE ***tokens);
 
 
 #endif

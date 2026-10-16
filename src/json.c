@@ -19,6 +19,7 @@ JSON_TYPE *json_lex_string(int *i, char *json_str, size_t json_len)
         return NULL;
     } 
 
+    j = 0;
     while ((c = json_str[*i]) != '\0')
     {
         if (c == '"')
@@ -26,6 +27,7 @@ JSON_TYPE *json_lex_string(int *i, char *json_str, size_t json_len)
             token->type = 0;
             data[j] = '\0';
             data = realloc(data, strlen(data) + 1);
+            token->data = data;
             return token;
         }
         else data[j] = c;
@@ -45,11 +47,12 @@ JSON_TYPE *json_lex_number(int *i, char *json_str, size_t json_len)
 {
     // TODO: Number parsing is an oversimplification of the required process. Read into it.
 
-    double data;
-    int j, tmp = *i;
+    int j;
+    double *data = malloc(sizeof(double));
     char c, *data_str = malloc(json_len + 1);
     JSON_TYPE *token = malloc(sizeof(JSON_TYPE));
 
+    j = 0;
     while ((c = json_str[*i]) != '\0')
     {
         if (strchr("0123456789-.e", c) != NULL)
@@ -61,8 +64,9 @@ JSON_TYPE *json_lex_number(int *i, char *json_str, size_t json_len)
         j += 1;
     }
 
-    if (strlen(data_str) == 0)
+    if (j == 0)
     {
+        free(data);
         free(data_str);
         free(token);
         return NULL;
@@ -70,7 +74,8 @@ JSON_TYPE *json_lex_number(int *i, char *json_str, size_t json_len)
 
     token->type = 1;
     data_str[j] = '\0';
-    data = strtod(data_str, NULL);
+    *data = strtod(data_str, NULL);
+    token->data = data;
     free(data_str);
     return token;
 }
@@ -80,7 +85,6 @@ JSON_TYPE *json_lex_bool(int *i, char *json_str, size_t json_len)
 {
     int true_len = strlen("true");
     int false_len = strlen("false");
-    int bool = -1;
     JSON_TYPE *token = malloc(sizeof(JSON_TYPE));
     token->data = NULL;
 
@@ -116,77 +120,131 @@ JSON_TYPE *json_lex_null(int *i, char *json_str, size_t json_len)
 }
 
 
-char **json_lex(char *json_str)
+int json_lex(char *json_str, JSON_TYPE ***tokens)
 {
     int i = 0;
     int token_idx = 0;
     char *p;
     size_t json_len = strlen(json_str);
-    JSON_TYPE *token, **tokens = NULL;
+    JSON_TYPE *token, **tokens_ = NULL;
 
     while (json_str[i] != '\0')
     {
         token = json_lex_string(&i, json_str, json_len);
-        if (i == -1) return NULL;
+        if (i == -1)
+        {
+            free(tokens_);
+            return -1;
+        }
         else if (token != NULL) 
         {
-            tokens = realloc(tokens, sizeof(JSON_TYPE) * (token_idx + 1));
-            tokens[token_idx] = token;
+            tokens_ = realloc(tokens_, sizeof(JSON_TYPE) * (token_idx + 1));
+            tokens_[token_idx] = token;
             token_idx += 1;
+            i += 1;
             continue;
         }
 
         token = json_lex_number(&i, json_str, json_len);
-        if (i == -1) return NULL;
+        if (i == -1)
+        {
+            free(tokens_);
+            return -1;
+        }
         else if (token != NULL) 
         {
-            tokens = realloc(tokens, sizeof(JSON_TYPE) * (token_idx + 1));
-            tokens[token_idx] = token;
+            tokens_ = realloc(tokens_, sizeof(JSON_TYPE) * (token_idx + 1));
+            tokens_[token_idx] = token;
             token_idx += 1;
+            i += 1;
             continue;
         }
 
         token = json_lex_bool(&i, json_str, json_len);
-        if (i == -1) return NULL;
-        else if (token != NULL) 
+        if (token != NULL) 
         {
-            tokens = realloc(tokens, sizeof(JSON_TYPE) * (token_idx + 1));
-            tokens[token_idx] = token;
+            tokens_ = realloc(tokens_, sizeof(JSON_TYPE) * (token_idx + 1));
+            tokens_[token_idx] = token;
             token_idx += 1;
+            i += 1;
             continue;
         }
 
         token = json_lex_null(&i, json_str, json_len);
-        if (i == -1) return NULL;
-        else if (token != NULL) 
+        if (token != NULL) 
         {
-            tokens = realloc(tokens, sizeof(JSON_TYPE) * (token_idx + 1));
-            tokens[token_idx] = token;
+            tokens_ = realloc(tokens_, sizeof(JSON_TYPE) * (token_idx + 1));
+            tokens_[token_idx] = token;
             token_idx += 1;
+            i += 1;
             continue;
         }
 
-
         if (strchr(" \t\r\n", json_str[i]) != NULL)
             i += 1;
-        else if (1) // if json syntax (what are they?)
+        else if (strchr(",[]{}:", json_str[i]) != NULL)
         {
             token = malloc(sizeof(JSON_TYPE));
             p = malloc(sizeof(char));
             *p = json_str[i];
-            token->type = 4;
+            token->type = 5;
             token->data = p;
-            tokens = realloc(tokens, sizeof(JSON_TYPE) * (token_idx + 1));
-            tokens[token_idx] = token;
+            tokens_ = realloc(tokens_, sizeof(JSON_TYPE) * (token_idx + 1));
+            tokens_[token_idx] = token;
             token_idx += 1;
+            i += 1;
             continue;
         }
         else 
         {
             printf("Unexpected character '%c' at index %d.\n", json_str[i], i);
-            return NULL;
+            free(tokens_);
+            return -1;
         }
-
     }
+
+    *tokens = tokens_;
+    return token_idx;
 }
 
+
+void print_tokens(JSON_TYPE **tokens, int tokens_len)
+{
+    JSON_TYPE *token;
+
+    for (int i = 0; i < tokens_len; i++)
+    {
+        token = tokens[i];
+        printf("%d, ", token->type);
+    }
+    puts("");
+
+    for (int i = 0; i < tokens_len; i++)
+    {
+        token = tokens[i];
+        switch (token->type) 
+        {
+            case 0: printf("<\"%s\">, ", (char*)token->data); break;
+            case 1: printf("<%lf>, ", *((double*)token->data)); break;
+            case 2: printf("<true>, "); break;
+            case 3: printf("<false>, "); break;
+            case 4: printf("<null>, "); break;
+            case 5: printf("<%c>, ", *((char*)token->data)); break;
+            default: break;
+        }
+    }
+    puts("");
+}
+
+
+int main(void)
+{
+    int tokens_len;
+    char *s = "{\"name\": \"John Smith\", \"age\": 53}";
+    JSON_TYPE **tokens;
+
+    tokens_len = json_lex(s, &tokens);
+    print_tokens(tokens, tokens_len);
+
+    return 0;
+}
