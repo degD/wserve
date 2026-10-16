@@ -1,26 +1,8 @@
 
-#include <stddef.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include "json.h"
 
-// Parsing JSON in two steps:
-// 1. Lexical analysis (tokenizing)
-// 2. Syntatic analysis (parsing)
 
-/* 0: string
- * 1: number
- * 2: true
- * 3: false
- * 4: null
- * 5: syntax
- */
-typedef struct JSON_TYPE
-{
-    int type;
-    void *data;
-}
-JSON_TYPE;
+typedef struct JSON_TYPE JSON_TYPE;
 
 
 JSON_TYPE *json_lex_string(int *i, char *json_str, size_t json_len)
