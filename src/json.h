@@ -7,6 +7,23 @@
 #include <string.h>
 
 
+typedef struct JSON_OBJ
+{
+    char **keys;
+    void **vals;
+    size_t len;
+}
+JSON_OBJ;
+
+
+typedef struct JSON_ARR
+{
+    void **items;
+    size_t len;
+}
+JSON_ARR;
+
+
 /* 0: string
  * 1: number
  * 2: true

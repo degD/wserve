@@ -208,6 +208,17 @@ int json_lex(char *json_str, JSON_TYPE ***tokens)
 }
 
 
+void free_tokens(JSON_TYPE **tokens, int tokens_len)
+{
+    JSON_TYPE *token;
+    for (int i = 0; i < tokens_len; i++) 
+    {
+        free(token->data);
+        free(token);
+    }
+}
+
+
 void print_tokens(JSON_TYPE **tokens, int tokens_len)
 {
     JSON_TYPE *token;
@@ -245,6 +256,7 @@ int main(void)
 
     tokens_len = json_lex(s, &tokens);
     print_tokens(tokens, tokens_len);
+    free_tokens(tokens, tokens_len);
 
     return 0;
 }
