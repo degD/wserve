@@ -248,6 +248,104 @@ void print_tokens(JSON_TYPE **tokens, int tokens_len)
 }
 
 
+JSON_TYPE *json_array_init()
+{
+    JSON_ARR *array_data = malloc(sizeof(JSON_ARR));
+    JSON_TYPE *array;
+    array->type = JSON_TYPE_ARR;
+    array->data = array_data;
+    array_data->len = 0;
+    array_data->items = NULL;
+    return array;
+}
+
+
+int json_array_push(JSON_TYPE *array, JSON_TYPE *item)
+{
+    if (array == NULL || array->type != JSON_TYPE_ARR || array->data == NULL) return 0;
+
+    JSON_ARR *data = array->data;
+    
+    data->len += 1;
+    data->items = realloc(data->items, sizeof(JSON_TYPE) * data->len);
+    data->items[data->len - 1] = item;
+
+    return 1;
+}
+
+
+int json_token_syntax_char_cmp(JSON_TYPE *t, char c)
+{
+    if (t->type == JSON_TYPE_SYN && *((char*)t->data) == c) 
+        return 1;
+    else
+        return 0;
+}
+
+
+JSON_TYPE *json_parse_array(JSON_TYPE **tokens, int *i)
+{
+    int j;
+    JSON_TYPE *t;
+    JSON_TYPE *array = json_array_init();
+
+    // empty array
+    t = tokens[*i];
+    if (json_token_syntax_char_cmp(t, ']'))
+    {
+        *i += 1;
+        return array;
+    }
+
+    while (1)
+    {
+        t = json_parse(tokens, i);
+        if (t == NULL) return NULL;
+        json_array_push(array, t);
+
+        t = tokens[*i];
+        if (json_token_syntax_char_cmp(t, ']'))
+        {
+            *i += 1;
+            return array;
+        }
+        else if (!json_token_syntax_char_cmp(t, ','))
+        {
+            printf("Token %d: Expected comma (,) after item in array.\n", *i);
+            return NULL;
+        }
+        else
+            *i += 1;
+    }
+}
+
+
+JSON_TYPE *json_parse_object(JSON_TYPE **tokens, int *i)
+{
+   
+}
+
+
+JSON_TYPE *json_parse(JSON_TYPE **tokens, int *i)
+{
+    char c;
+    JSON_TYPE *t = tokens[*i];
+
+    i = 0;
+    if (t->type == JSON_TYPE_SYN)
+    {
+        c = *((char*)t->data);
+        if (c == '[')
+            return json_parse_array(tokens, i);
+        else if (c == '{')
+            return json_parse_object(tokens, i);
+        else
+            return;
+    }
+    return;
+}
+
+
 int main(void)
 {
     int tokens_len;
