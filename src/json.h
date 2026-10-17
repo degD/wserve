@@ -58,9 +58,9 @@ JSON_TYPE *json_lex_number(int *i, char *json_str, size_t json_len);
 JSON_TYPE *json_lex_bool(int *i, char *json_str, size_t json_len);
 JSON_TYPE *json_lex_null(int *i, char *json_str, size_t json_len);
 int json_lex(char *json_str, JSON_TYPE ***tokens);
-JSON_TYPE *json_parse_array(JSON_TYPE **tokens, int *i);
-JSON_TYPE *json_parse_object(JSON_TYPE **tokens, int *i);
-JSON_TYPE *json_parse(JSON_TYPE **tokens, int *i);
+JSON_TYPE *json_parse_array(JSON_TYPE **tokens, int tokens_len, int *i);
+JSON_TYPE *json_parse_object(JSON_TYPE **tokens, int tokens_len, int *i);
+JSON_TYPE *json_parse(JSON_TYPE **tokens, int tokens_len, int *i);
 
 
 #endif

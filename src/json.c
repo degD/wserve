@@ -89,9 +89,15 @@ JSON_TYPE *json_lex_bool(int *i, char *json_str, size_t json_len)
     token->data = NULL;
 
     if (json_len >= true_len && strncmp(&json_str[*i], "true", true_len) == 0)
+    {
+        *i += true_len;
         token->type = 2;
+    }
     else if (json_len >= false_len && strncmp(&json_str[*i], "false", false_len) == 0)
+    {
+        *i += false_len;
         token->type = 3;
+    }
     else 
     {
         free(token);
@@ -109,7 +115,10 @@ JSON_TYPE *json_lex_null(int *i, char *json_str, size_t json_len)
     token->data = NULL;
 
     if (json_len >= null_len && strncmp(&json_str[*i], "null", null_len) == 0)
+    {
+        *i += null_len;
         token->type = 4;
+    }
     else 
     {
         free(token);
@@ -156,7 +165,6 @@ int json_lex(char *json_str, JSON_TYPE ***tokens)
             tokens_ = realloc(tokens_, sizeof(JSON_TYPE) * (token_idx + 1));
             tokens_[token_idx] = token;
             token_idx += 1;
-            i += 1;
             continue;
         }
 
@@ -166,7 +174,6 @@ int json_lex(char *json_str, JSON_TYPE ***tokens)
             tokens_ = realloc(tokens_, sizeof(JSON_TYPE) * (token_idx + 1));
             tokens_[token_idx] = token;
             token_idx += 1;
-            i += 1;
             continue;
         }
 
@@ -176,7 +183,6 @@ int json_lex(char *json_str, JSON_TYPE ***tokens)
             tokens_ = realloc(tokens_, sizeof(JSON_TYPE) * (token_idx + 1));
             tokens_[token_idx] = token;
             token_idx += 1;
-            i += 1;
             continue;
         }
 
@@ -210,12 +216,16 @@ int json_lex(char *json_str, JSON_TYPE ***tokens)
 
 void free_tokens(JSON_TYPE **tokens, int tokens_len)
 {
+    if (tokens == NULL) return;
+
     JSON_TYPE *token;
     for (int i = 0; i < tokens_len; i++) 
     {
+        token = tokens[i];
         free(token->data);
         free(token);
     }
+    free(tokens);
 }
 
 
@@ -251,12 +261,25 @@ void print_tokens(JSON_TYPE **tokens, int tokens_len)
 JSON_TYPE *json_array_init()
 {
     JSON_ARR *array_data = malloc(sizeof(JSON_ARR));
-    JSON_TYPE *array;
+    JSON_TYPE *array = malloc(sizeof(JSON_TYPE));
     array->type = JSON_TYPE_ARR;
     array->data = array_data;
     array_data->len = 0;
     array_data->items = NULL;
     return array;
+}
+
+
+JSON_TYPE *json_object_init()
+{
+    JSON_OBJ *obj_data = malloc(sizeof(JSON_OBJ));
+    JSON_TYPE *object = malloc(sizeof(JSON_TYPE));
+    object->type = JSON_TYPE_OBJ;
+    object->data = obj_data;
+    obj_data->len = 0;
+    obj_data->keys = NULL;
+    obj_data->vals = NULL;
+    return object;
 }
 
 
@@ -274,6 +297,22 @@ int json_array_push(JSON_TYPE *array, JSON_TYPE *item)
 }
 
 
+int json_object_push(JSON_TYPE *object, char *key, JSON_TYPE *val)
+{
+    if (object == NULL || object->type != JSON_TYPE_OBJ || object->data == NULL) return 0;
+
+    JSON_OBJ *data = object->data;
+    
+    data->len += 1;
+    data->keys = realloc(data->keys, sizeof(char*) * data->len);
+    data->vals = realloc(data->vals, sizeof(JSON_TYPE*) * data->len);
+    data->keys[data->len - 1] = key;
+    data->vals[data->len - 1] = val;
+
+    return 1;
+}
+
+
 int json_token_syntax_char_cmp(JSON_TYPE *t, char c)
 {
     if (t->type == JSON_TYPE_SYN && *((char*)t->data) == c) 
@@ -283,9 +322,8 @@ int json_token_syntax_char_cmp(JSON_TYPE *t, char c)
 }
 
 
-JSON_TYPE *json_parse_array(JSON_TYPE **tokens, int *i)
+JSON_TYPE *json_parse_array(JSON_TYPE **tokens, int tokens_len, int *i)
 {
-    int j;
     JSON_TYPE *t;
     JSON_TYPE *array = json_array_init();
 
@@ -297,11 +335,13 @@ JSON_TYPE *json_parse_array(JSON_TYPE **tokens, int *i)
         return array;
     }
 
-    while (1)
+    while (*i < tokens_len)
     {
-        t = json_parse(tokens, i);
+        t = json_parse(tokens, tokens_len, i);
         if (t == NULL) return NULL;
         json_array_push(array, t);
+
+        if (*i >= tokens_len) break;
 
         t = tokens[*i];
         if (json_token_syntax_char_cmp(t, ']'))
@@ -317,44 +357,149 @@ JSON_TYPE *json_parse_array(JSON_TYPE **tokens, int *i)
         else
             *i += 1;
     }
+
+    printf("EOL: End of array ']' not found.\n");
+    return NULL;
 }
 
 
-JSON_TYPE *json_parse_object(JSON_TYPE **tokens, int *i)
+JSON_TYPE *json_parse_object(JSON_TYPE **tokens, int tokens_len, int *i)
 {
-   
+    JSON_TYPE *t, *t_key, *t_val;
+    JSON_TYPE *object = json_object_init();
+
+    t = tokens[*i];
+    if (json_token_syntax_char_cmp(t, '}'))
+    {
+        *i += 1;
+        return object;
+    }
+
+    while (*i < tokens_len)
+    {
+        t_key = tokens[*i];
+        if (t_key->type != JSON_TYPE_STR)
+        {
+            printf("Token %d: Expected string key.\n", *i);
+            return NULL;
+        }
+        *i += 1;
+
+        if (*i >= tokens_len) break;        
+
+        t = tokens[*i];
+        if (!json_token_syntax_char_cmp(t, ':'))
+        {
+            printf("Token %d: Expected colon after key.\n", *i);
+            return NULL;
+        }
+        *i += 1;
+        
+        if (*i >= tokens_len) break;
+
+        t_val = json_parse(tokens, tokens_len, i);
+        if (t_val == NULL) return NULL;
+        json_object_push(object, t_key->data, t_val);
+
+        if (*i >= tokens_len) break;
+
+        t = tokens[*i];
+        if (json_token_syntax_char_cmp(t, '}'))
+        {
+            *i += 1;
+            return object;
+        }
+        else if (!(json_token_syntax_char_cmp(t, ',')))
+        {
+            printf("Token %d: Expected comma after a key-value pair.\n", *i);
+            return NULL;
+        }
+        *i += 1;
+    }
+
+    printf("EOL: End of object '}' not found.\n");
+    return NULL;
 }
 
 
-JSON_TYPE *json_parse(JSON_TYPE **tokens, int *i)
+JSON_TYPE *json_parse(JSON_TYPE **tokens, int tokens_len, int *i)
 {
-    char c;
     JSON_TYPE *t = tokens[*i];
-
-    i = 0;
     if (t->type == JSON_TYPE_SYN)
     {
-        c = *((char*)t->data);
-        if (c == '[')
-            return json_parse_array(tokens, i);
-        else if (c == '{')
-            return json_parse_object(tokens, i);
-        else
-            return;
+        if (json_token_syntax_char_cmp(t, '['))
+        {
+            *i += 1;
+            return json_parse_array(tokens, tokens_len, i);
+        }
+        else if (json_token_syntax_char_cmp(t, '{'))
+        {
+            *i += 1;
+            return json_parse_object(tokens, tokens_len, i);
+        }
     }
+    *i += 1;
+    return t;
+}
+
+
+void json_print_type(JSON_TYPE *t)
+{
+    if (t == NULL) return;
+
+    switch (t->type) {
+        case 0: printf("\"%s\"", (char*)t->data); break;
+        case 1: printf("%.2lf", *((double*)t->data)); break;
+        case 2: printf("true"); break;
+        case 3: printf("false"); break;
+        case 4: printf("null"); break;
+    }
+
+    if (t->type == 6)
+    {
+        JSON_ARR *data;
+        data = t->data;
+        printf("[");
+        for (int i = 0; i < data->len-1; i++)
+        {
+            json_print_type(data->items[i]);
+            printf(",");
+        }
+        json_print_type(data->items[data->len-1]);
+        printf("]");
+    }
+    else if (t->type == 7)
+    {
+        JSON_OBJ *data;
+        data = t->data;
+        printf("{");
+        for (int i = 0; i < data->len-1; i++)
+        {
+            printf("\"%s\":", data->keys[i]);
+            json_print_type(data->vals[i]);
+            printf(",");
+        }
+        printf("\"%s\":", data->keys[data->len-1]);
+        json_print_type(data->vals[data->len-1]);
+        printf("}");
+    }
+
     return;
 }
 
 
 int main(void)
 {
-    int tokens_len;
-    char *s = "{\"name\": \"John Smith\", \"age\": 53}";
-    JSON_TYPE **tokens;
+    int tokens_len, i = 0;
+    char *s = "{\"first_name\":\"John\",\"last_name\":\"Smith\",\"is_alive\":true,\"age\":27,\"address\":{\"street_address\":\"21 2nd Street\",\"city\":\"New York\",\"state\":\"NY\",\"postal_code\":\"10021-3100\"},\"phone_numbers\":[{\"type\":\"home\",\"number\":\"212 555-1234\"},{\"type\":\"office\",\"number\":\"646 555-4567\"}],\"children\":[\"Catherine\",\"Thomas\",\"Trevor\"],\"spouse\":null}";
+    JSON_TYPE **tokens, *t;
 
     tokens_len = json_lex(s, &tokens);
-    print_tokens(tokens, tokens_len);
-    free_tokens(tokens, tokens_len);
+    // print_tokens(tokens, tokens_len);
+    t = json_parse(tokens, tokens_len, &i);
+    json_print_type(t);
+
+    // free_tokens(tokens, tokens_len);
 
     return 0;
 }
