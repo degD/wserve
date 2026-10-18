@@ -59,7 +59,7 @@ To run unit tests:
 
 By default, the web server runs on port `6543` ([http://localhost:6543](http://localhost:6543)) and uses `test/static` as the root of the static assets. `test/static` includes a demo site. After compiling and running, visit this site to see the server in action. Server defaults are set by using the function `init_server_settings`. Modify the call of `init_server_settings` in `main.c` to change the configuration and compile again.
 
-![wserve demo page](wserve.png)
+![wserve demo page](assets/wserve.png)
 
 ```c
 init_server_settings(

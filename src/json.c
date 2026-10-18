@@ -719,18 +719,18 @@ void json_print_type(JSON_TYPE *t)
     return;
 }
 
-int main(void)
-{
-    int tokens_len, i = 0;
-    char *s = "{\"first_name\":\"John\",\"last_name\":\"Smith\",\"is_alive\":true,\"age\":27,\"address\":{\"street_address\":\"21 2nd Street\",\"city\":\"New York\",\"state\":\"NY\",\"postal_code\":\"10021-3100\"},\"phone_numbers\":[{\"type\":\"home\",\"number\":\"212 555-1234\"},{\"type\":\"office\",\"number\":\"646 555-4567\"}],\"children\":[\"Catherine\",\"Thomas\",\"Trevor\"],\"spouse\":null}";
-    JSON_TYPE **tokens, *t;
+// int main(void)
+// {
+//     int tokens_len, i = 0;
+//     char *s = "{\"first_name\":\"John\",\"last_name\":\"Smith\",\"is_alive\":true,\"age\":27,\"address\":{\"street_address\":\"21 2nd Street\",\"city\":\"New York\",\"state\":\"NY\",\"postal_code\":\"10021-3100\"},\"phone_numbers\":[{\"type\":\"home\",\"number\":\"212 555-1234\"},{\"type\":\"office\",\"number\":\"646 555-4567\"}],\"children\":[\"Catherine\",\"Thomas\",\"Trevor\"],\"spouse\":null}";
+//     JSON_TYPE **tokens, *t;
 
-    tokens_len = json_lex(s, &tokens);
-    // print_tokens(tokens, tokens_len);
-    t = json_parse(tokens, tokens_len, &i);
-    json_print_type(t);
+//     tokens_len = json_lex(s, &tokens);
+//     // print_tokens(tokens, tokens_len);
+//     t = json_parse(tokens, tokens_len, &i);
+//     json_print_type(t);
 
-    // free_tokens(tokens, tokens_len);
+//     // free_tokens(tokens, tokens_len);
 
-    return 0;
-}
+//     return 0;
+// }

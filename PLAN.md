@@ -99,10 +99,12 @@ Dynamic routing for GET and HEAD. Query parameters. Function documentations.
 
 ## v0.13
 
-Implement POST. Implement JSON parsing. Test JSON parser.
+Implement POST. Implement JSON parsing. Test JSON parser using JSONTestSuite. Add demo POST endpoint.
 
 - https://en.wikipedia.org/wiki/JSON#Data_types
 - https://notes.eatonphil.com/writing-a-simple-json-parser.html
+- https://www.rfc-editor.org/info/rfc8259/
+- https://github.com/nst/JSONTestSuite
 
 ## v0.14
 
