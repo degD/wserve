@@ -1,10 +1,26 @@
-
 #include "json.h"
 
-
-typedef struct JSON_TYPE JSON_TYPE;
-
-
+/**
+ * @brief Lex a JSON string token.
+ *
+ * This function parses a JSON string starting at the given index `*i` in
+ * `json_str`.  The string must begin with a double‑quote character (`"`).
+ * It allocates a new `JSON_TYPE` token whose `type` is set to
+ * `JSON_TYPE_STR` (0) and whose `data` points to a newly allocated,
+ * NUL‑terminated C string containing the string contents (without the
+ * surrounding quotes).  The index `*i` is advanced to the character
+ * after the closing quote.  If the string is not properly terminated,
+ * the function prints an error, frees allocated memory, sets `*i` to `-1`,
+ * and returns `NULL`.
+ *
+ * @param[in,out] i         Pointer to the current character index in the
+ *                          input string; updated on success or failure.
+ * @param[in]     json_str  The full JSON text being lexed.
+ * @param[in]     json_len  Length of the JSON text (as returned by `strlen`).
+ *
+ * @return Pointer to a freshly allocated `JSON_TYPE` representing the
+ *         string token, or `NULL` on failure.
+ */
 JSON_TYPE *json_lex_string(int *i, char *json_str, size_t json_len)
 {
     int j, tmp = *i;
@@ -42,7 +58,25 @@ JSON_TYPE *json_lex_string(int *i, char *json_str, size_t json_len)
     return NULL;
 }
 
-
+/**
+ * @brief Lex a JSON number token.
+ *
+ * This function parses a numeric literal (including integer, fractional,
+ * exponent, and sign characters) starting at `*i`.  It collects the raw
+ * characters into a temporary string, converts it to a `double` with
+ * `strtod`, and stores the result in a newly allocated `JSON_TYPE` whose
+ * `type` is `JSON_TYPE_NUM` (1).  The token’s `data` points to a dynamically
+ * allocated `double`.  The index `*i` is left positioned at the first
+ * character after the number.
+ *
+ * @param[in,out] i         Pointer to the current index; advanced past the
+ *                          number on success.
+ * @param[in]     json_str  The full JSON text being lexed.
+ * @param[in]     json_len  Length of the JSON text.
+ *
+ * @return Pointer to a `JSON_TYPE` holding the parsed number, or `NULL` if
+ *         no number characters were found.
+ */
 JSON_TYPE *json_lex_number(int *i, char *json_str, size_t json_len)
 {
     // TODO: Number parsing is an oversimplification of the required process. Read into it.
@@ -80,7 +114,21 @@ JSON_TYPE *json_lex_number(int *i, char *json_str, size_t json_len)
     return token;
 }
 
-
+/**
+ * @brief Lex a JSON boolean token (`true` or `false`).
+ *
+ * The function checks whether the substring at the current index matches
+ * `"true"` or `"false"`.  On a match it advances the index past the keyword,
+ * sets the token’s `type` to `JSON_TYPE_TRUE` (2) or `JSON_TYPE_FALSE` (3),
+ * and returns the newly allocated token.  No additional data is stored.
+ *
+ * @param[in,out] i         Pointer to the current index; advanced on success.
+ * @param[in]     json_str  The full JSON text.
+ * @param[in]     json_len  Length of the JSON text.
+ *
+ * @return Pointer to a `JSON_TYPE` representing the boolean, or `NULL` if the
+ *         text does not start with a valid boolean literal.
+ */
 JSON_TYPE *json_lex_bool(int *i, char *json_str, size_t json_len)
 {
     int true_len = strlen("true");
@@ -107,7 +155,20 @@ JSON_TYPE *json_lex_bool(int *i, char *json_str, size_t json_len)
     return token;
 }
 
-
+/**
+ * @brief Lex a JSON `null` token.
+ *
+ * Detects the literal `"null"` at the current index, advances the index,
+ * and returns a token whose `type` is `JSON_TYPE_NULL` (4).  No payload
+ * data is stored.
+ *
+ * @param[in,out] i         Pointer to the current index; advanced on success.
+ * @param[in]     json_str  The full JSON text.
+ * @param[in]     json_len  Length of the JSON text.
+ *
+ * @return Pointer to a `JSON_TYPE` representing `null`, or `NULL` if the
+ *         text does not match `"null"`.
+ */
 JSON_TYPE *json_lex_null(int *i, char *json_str, size_t json_len)
 {
     int null_len = strlen("null");
@@ -128,7 +189,23 @@ JSON_TYPE *json_lex_null(int *i, char *json_str, size_t json_len)
     return token;
 }
 
-
+/**
+ * @brief Tokenise an entire JSON string.
+ *
+ * Iterates through `json_str`, repeatedly invoking the specialised lexer
+ * functions for strings, numbers, booleans, and `null`.  It also creates
+ * tokens for structural characters (`{`, `}`, `[`, `]`, `:`, `,`).  The
+ * resulting array of token pointers is allocated dynamically and returned
+ * via the `tokens` out‑parameter.  On success the function returns the
+ * number of tokens produced; on failure it frees any partial allocations
+ * and returns `-1`.
+ *
+ * @param[in]  json_str   Null‑terminated JSON text to lex.
+ * @param[out] tokens     Address of a pointer that will receive the allocated
+ *                        token array (`JSON_TYPE **`).
+ *
+ * @return Number of tokens on success, or `-1` on error.
+ */
 int json_lex(char *json_str, JSON_TYPE ***tokens)
 {
     int i = 0;
@@ -213,7 +290,15 @@ int json_lex(char *json_str, JSON_TYPE ***tokens)
     return token_idx;
 }
 
-
+/**
+ * @brief Free an array of tokens created by `json_lex`.
+ *
+ * Iterates over the token array, frees the per‑token data (if any) and the
+ * token structures themselves, then frees the array container.
+ *
+ * @param[in] tokens      Array of `JSON_TYPE *` pointers.
+ * @param[in] tokens_len  Number of elements in the array.
+ */
 void free_tokens(JSON_TYPE **tokens, int tokens_len)
 {
     if (tokens == NULL) return;
@@ -228,7 +313,16 @@ void free_tokens(JSON_TYPE **tokens, int tokens_len)
     free(tokens);
 }
 
-
+/**
+ * @brief Print a compact representation of the token stream.
+ *
+ * First prints the numeric `type` of each token, then prints a human‑readable
+ * representation of each token’s value (string, number, boolean, null,
+ * or syntax character).  Useful for debugging the lexer.
+ *
+ * @param[in] tokens      Array of token pointers.
+ * @param[in] tokens_len  Number of tokens.
+ */
 void print_tokens(JSON_TYPE **tokens, int tokens_len)
 {
     JSON_TYPE *token;
@@ -257,7 +351,14 @@ void print_tokens(JSON_TYPE **tokens, int tokens_len)
     puts("");
 }
 
-
+/**
+ * @brief Allocate and initialise a new JSON array node.
+ *
+ * Creates a `JSON_TYPE` whose `type` is `JSON_TYPE_ARR` (6) and whose
+ * `data` points to an empty `JSON_ARR` structure ready to receive items.
+ *
+ * @return Pointer to the newly created array token.
+ */
 JSON_TYPE *json_array_init()
 {
     JSON_ARR *array_data = malloc(sizeof(JSON_ARR));
@@ -269,7 +370,15 @@ JSON_TYPE *json_array_init()
     return array;
 }
 
-
+/**
+ * @brief Allocate and initialise a new JSON object node.
+ *
+ * Creates a `JSON_TYPE` whose `type` is `JSON_TYPE_OBJ` (7) and whose
+ * `data` points to an empty `JSON_OBJ` structure prepared for key/value
+ * pairs.
+ *
+ * @return Pointer to the newly created object token.
+ */
 JSON_TYPE *json_object_init()
 {
     JSON_OBJ *obj_data = malloc(sizeof(JSON_OBJ));
@@ -282,7 +391,17 @@ JSON_TYPE *json_object_init()
     return object;
 }
 
-
+/**
+ * @brief Append an item to a JSON array.
+ *
+ * Validates that `array` is a properly initialised JSON array token,
+ * then grows its internal `items` buffer and stores the new element.
+ *
+ * @param[in] array  The JSON array token (`type` == JSON_TYPE_ARR).
+ * @param[in] item   The JSON token to append to the array.
+ *
+ * @return `1` on success, `0` if `array` is not a valid array token.
+ */
 int json_array_push(JSON_TYPE *array, JSON_TYPE *item)
 {
     if (array == NULL || array->type != JSON_TYPE_ARR || array->data == NULL) return 0;
@@ -296,7 +415,18 @@ int json_array_push(JSON_TYPE *array, JSON_TYPE *item)
     return 1;
 }
 
-
+/**
+ * @brief Insert a key/value pair into a JSON object.
+ *
+ * The function expands the object's internal key and value arrays and stores
+ * the supplied `key` (ownership transferred to the object) and `val`.
+ *
+ * @param[in] object  The JSON object token (`type` == JSON_TYPE_OBJ).
+ * @param[in] key     Null‑terminated string containing the member name.
+ * @param[in] val     JSON token representing the member's value.
+ *
+ * @return `1` on success, `0` if `object` is not a valid object token.
+ */
 int json_object_push(JSON_TYPE *object, char *key, JSON_TYPE *val)
 {
     if (object == NULL || object->type != JSON_TYPE_OBJ || object->data == NULL) return 0;
@@ -312,7 +442,17 @@ int json_object_push(JSON_TYPE *object, char *key, JSON_TYPE *val)
     return 1;
 }
 
-
+/**
+ * @brief Compare a syntax token with a given character.
+ *
+ * Returns 1 if the supplied token is of type `JSON_TYPE_SYN` (5) and its
+ * stored character matches `c`; otherwise returns 0.
+ *
+ * @param[in] t  Token to test.
+ * @param[in] c  Character to compare against.
+ *
+ * @return `1` if the token is the specified syntax character, else `0`.
+ */
 int json_token_syntax_char_cmp(JSON_TYPE *t, char c)
 {
     if (t->type == JSON_TYPE_SYN && *((char*)t->data) == c) 
@@ -321,7 +461,22 @@ int json_token_syntax_char_cmp(JSON_TYPE *t, char c)
         return 0;
 }
 
-
+/**
+ * @brief Parse a JSON array from a token stream.
+ *
+ * Consumes tokens beginning at position `*i` (which should be the first
+ * element after the opening `'['`).  Elements are parsed recursively via
+ * `json_parse`.  The function stops when it encounters the matching closing
+ * `']'`, returning a fully populated array token.  On syntax errors it prints
+ * an explanatory message and returns `NULL`.
+ *
+ * @param[in]  tokens      Array of token pointers produced by the lexer.
+ * @param[in]  tokens_len  Number of tokens in the array.
+ * @param[in,out] i        Current token index; updated to point just after the
+ *                         closing `']'` on success.
+ *
+ * @return Pointer to a JSON array token, or `NULL` on error.
+ */
 JSON_TYPE *json_parse_array(JSON_TYPE **tokens, int tokens_len, int *i)
 {
     JSON_TYPE *t;
@@ -362,7 +517,21 @@ JSON_TYPE *json_parse_array(JSON_TYPE **tokens, int tokens_len, int *i)
     return NULL;
 }
 
-
+/**
+ * @brief Parse a JSON object from a token stream.
+ *
+ * Consumes tokens starting at `*i` (which should be the first token after
+ * the opening `'{'`).  Keys must be string tokens; values are parsed
+ * recursively.  The function builds an object token populated with key/value
+ * pairs until it encounters the matching closing `'}'`.  Errors are reported
+ * via `printf` and result in a `NULL` return.
+ *
+ * @param[in]  tokens      Token array from the lexer.
+ * @param[in]  tokens_len  Number of tokens.
+ * @param[in,out] i        Current token index; advanced past the closing `}`.
+ *
+ * @return Pointer to a JSON object token, or `NULL` on syntax error.
+ */
 JSON_TYPE *json_parse_object(JSON_TYPE **tokens, int tokens_len, int *i)
 {
     JSON_TYPE *t, *t_key, *t_val;
@@ -421,7 +590,21 @@ JSON_TYPE *json_parse_object(JSON_TYPE **tokens, int tokens_len, int *i)
     return NULL;
 }
 
-
+/**
+ * @brief Parse any JSON value from the token stream.
+ *
+ * Dispatches based on the current token: if it is a syntax token `'['` or
+ * `'{'` it delegates to `json_parse_array` or `json_parse_object`,
+ * respectively.  Otherwise the token itself (string, number, boolean,
+ * null, or syntax character) is returned.  The index `*i` is advanced
+ * past the consumed token(s).
+ *
+ * @param[in]  tokens      Array of tokens produced by the lexer.
+ * @param[in]  tokens_len  Number of tokens.
+ * @param[in,out] i        Current token position; updated on return.
+ *
+ * @return Pointer to a JSON value token, or `NULL` on error.
+ */
 JSON_TYPE *json_parse(JSON_TYPE **tokens, int tokens_len, int *i)
 {
     JSON_TYPE *t = tokens[*i];
@@ -442,6 +625,16 @@ JSON_TYPE *json_parse(JSON_TYPE **tokens, int tokens_len, int *i)
     return t;
 }
 
+/**
+ * @brief Recursively free a parsed JSON structure.
+ *
+ * Traverses the JSON value tree, releasing dynamically allocated memory for
+ * all compound types (arrays and objects) and their children.  Primitive
+ * tokens are freed directly.  After freeing the internal data, the token
+ * itself is freed.  The function safely tolerates a `NULL` argument.
+ *
+ * @param[in] t  Root token of the JSON value to free.
+ */
 void json_free(JSON_TYPE *t)
 {
     if (t == NULL) return;
@@ -473,6 +666,15 @@ void json_free(JSON_TYPE *t)
     if (t == NULL) free(t);
 }
 
+/**
+ * @brief Print a JSON value in its textual representation.
+ *
+ * Emits a compact JSON string to `stdout` that corresponds to the data
+ * represented by token `t`.  Primitive types are printed directly, while
+ * arrays and objects are rendered recursively with proper delimiters.
+ *
+ * @param[in] t  Token representing the JSON value to print.
+ */
 void json_print_type(JSON_TYPE *t)
 {
     if (t == NULL) return;
