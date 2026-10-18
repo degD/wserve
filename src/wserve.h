@@ -16,6 +16,8 @@
 #include <signal.h>
 #include <string.h>
 
+#include "json.h"
+
 
 // ########################
 // # SERVER TCP FUNCTIONS #

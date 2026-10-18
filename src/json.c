@@ -1,4 +1,5 @@
 #include "json.h"
+#include <string.h>
 
 /**
  * @brief Lex a JSON string token.
@@ -717,6 +718,24 @@ void json_print_type(JSON_TYPE *t)
     }
 
     return;
+}
+
+JSON_TYPE *json_parse2(char *data)
+{
+    JSON_TYPE **tokens;
+    int i = 0, n = json_lex(data, &tokens);
+    if (n == -1) return NULL;
+    return json_parse(tokens, n, &i);
+}
+
+JSON_TYPE *json_object_get(JSON_TYPE *t, char *key)
+{
+    if (t == NULL || t->data == NULL || t->type != JSON_TYPE_OBJ) return NULL;
+
+    int i = 0;
+    JSON_OBJ *data = t->data;
+    for (i = 0; i < data->len; i++)
+        if (strcmp(key, data->keys[i]) == 0) return data->vals[i];
 }
 
 // int main(void)

@@ -1992,3 +1992,17 @@ char *get_params_val_by_key(char **params, size_t n, char *key)
     }
     return NULL;
 }
+
+int write_file(char *filename, char *data, size_t n)
+{
+    if (!is_server_settings_set()) return -1;
+
+    char *root = _settings->root;
+    FILE *fp;
+
+    fp = fopen(filename, "w");
+    if (fp == NULL) return -1;
+    
+    fwrite(data, sizeof(char), n, fp);
+    
+}

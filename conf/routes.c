@@ -1,5 +1,6 @@
 
 #include "../src/wserve.h"
+#include <string.h>
 
 
 // ####################################
@@ -31,6 +32,32 @@ HTTP_RESPONSE *say_hello(HTTP_REQUEST *hr)
         else
             return build_response_with_body("I asked you your name?", ".txt");
     }
+}
+
+HTTP_RESPONSE *save_name(HTTP_REQUEST *hr)
+{
+    char *body;
+    JSON_TYPE *t;
+
+    body = malloc(sizeof(hr->bodylen + 1));
+    memcpy(body, hr->body, hr->bodylen);
+    body[hr->bodylen] = '\0';
+
+    // Expects a JSON in the following format:
+    // {
+    //    "name": "John Smith",
+    //    "age": 50
+    // }
+    
+    t = json_parse2(body);
+    if (t == NULL || t->data == NULL || t->type != JSON_TYPE_OBJ) 
+    {
+        free(body);
+        return build_status_response("400");
+    }
+
+    JSON_OBJ *data = t->data;
+    fopen("")
 }
 
 
