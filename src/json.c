@@ -442,6 +442,36 @@ JSON_TYPE *json_parse(JSON_TYPE **tokens, int tokens_len, int *i)
     return t;
 }
 
+void json_free(JSON_TYPE *t)
+{
+    if (t == NULL) return;
+    switch (t->type) 
+    {
+        case 0: case 1: case 5: free(t->data); break;
+        case 2: case 3: case 4: break;
+        case 6:
+        {
+            JSON_ARR *data = t->data;
+            for (int i = 0; i < data->len; i++)
+                json_free(data->items[i]);
+            free(data);
+            break;
+        }
+        case 7:
+        {
+            JSON_OBJ *data = t->data;
+            for (int i = 0; i < data->len; i++)
+            {
+                free(data->keys[i]);
+                json_free(data->vals[i]);
+            }
+            free(data);
+            break;
+        }
+        default: return;
+    }
+    if (t == NULL) free(t);
+}
 
 void json_print_type(JSON_TYPE *t)
 {
@@ -486,7 +516,6 @@ void json_print_type(JSON_TYPE *t)
 
     return;
 }
-
 
 int main(void)
 {
