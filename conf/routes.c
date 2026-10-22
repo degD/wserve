@@ -1,5 +1,7 @@
 
 #include "../src/wserve.h"
+#include <stddef.h>
+#include <stdio.h>
 #include <string.h>
 
 
@@ -39,13 +41,14 @@ HTTP_RESPONSE *save_name(HTTP_REQUEST *hr)
     char *body;
     JSON_TYPE *t;
 
-    body = malloc(sizeof(hr->bodylen + 1));
+    body = malloc(sizeof(char) * (hr->bodylen+1));
     memcpy(body, hr->body, hr->bodylen);
     body[hr->bodylen] = '\0';
 
+    printf("%zu, %s\n", hr->bodylen, hr->body);
     // Expects a JSON in the following format:
     // {
-    //    "name": "John Smith",
+    //    "name": "JohnSmith",
     //    "age": 50
     // }
     
@@ -56,8 +59,22 @@ HTTP_RESPONSE *save_name(HTTP_REQUEST *hr)
         return build_status_response("400");
     }
 
-    JSON_OBJ *data = t->data;
-    fopen("")
+    json_print_type(t);
+
+    char *name = json_object_get(t, "name")->data;
+    double *age = json_object_get(t, "age")->data;
+    char p[100];
+    size_t n;
+    sprintf(p, "%s is %.0lf years old.", name, *age);
+    
+    n = write_file("/post/name.txt", p, strlen(p));
+    if (n == -1)
+    {
+        return build_response_with_body("POST failed. Do you know why?\n", ".txt");
+        json_free(t);
+    }
+
+    return build_status_response("200");
 }
 
 
@@ -69,4 +86,5 @@ void build_routing_table(void)
 {
     add_init_route("/home", "GET", home_route);
     add_init_route("/hello", "GET", say_hello);
+    add_init_route("/savename", "POST", save_name);
 }

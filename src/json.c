@@ -88,7 +88,7 @@ JSON_TYPE *json_lex_number(int *i, char *json_str, size_t json_len)
     JSON_TYPE *token = malloc(sizeof(JSON_TYPE));
 
     j = 0;
-    while ((c = json_str[*i]) != '\0')
+    while (*i < json_len && (c = json_str[*i]) != '\0')
     {
         if (strchr("0123456789-.e", c) != NULL)
             data_str[j] = c;
@@ -109,6 +109,7 @@ JSON_TYPE *json_lex_number(int *i, char *json_str, size_t json_len)
 
     token->type = 1;
     data_str[j] = '\0';
+    printf("num: %s\n", data_str);
     *data = strtod(data_str, NULL);
     token->data = data;
     free(data_str);
@@ -209,6 +210,7 @@ JSON_TYPE *json_lex_null(int *i, char *json_str, size_t json_len)
  */
 int json_lex(char *json_str, JSON_TYPE ***tokens)
 {
+    printf(".. '%s'\n", json_str);
     int i = 0;
     int token_idx = 0;
     char *p;
@@ -217,6 +219,7 @@ int json_lex(char *json_str, JSON_TYPE ***tokens)
 
     while (json_str[i] != '\0')
     {
+        printf("..> %c, '%s'\n", json_str[i], json_str);
         token = json_lex_string(&i, json_str, json_len);
         if (i == -1)
         {
@@ -268,6 +271,8 @@ int json_lex(char *json_str, JSON_TYPE ***tokens)
             i += 1;
         else if (strchr(",[]{}:", json_str[i]) != NULL)
         {
+        printf("xx> %c, '%s'\n", json_str[i], json_str);
+
             token = malloc(sizeof(JSON_TYPE));
             p = malloc(sizeof(char));
             *p = json_str[i];
@@ -276,6 +281,8 @@ int json_lex(char *json_str, JSON_TYPE ***tokens)
             tokens_ = realloc(tokens_, sizeof(JSON_TYPE) * (token_idx + 1));
             tokens_[token_idx] = token;
             token_idx += 1;
+        printf("xx> %c, '%s'\n", json_str[i], json_str);
+
             i += 1;
             continue;
         }
@@ -736,12 +743,14 @@ JSON_TYPE *json_object_get(JSON_TYPE *t, char *key)
     JSON_OBJ *data = t->data;
     for (i = 0; i < data->len; i++)
         if (strcmp(key, data->keys[i]) == 0) return data->vals[i];
+
+    return NULL;
 }
 
 // int main(void)
 // {
 //     int tokens_len, i = 0;
-//     char *s = "{\"first_name\":\"John\",\"last_name\":\"Smith\",\"is_alive\":true,\"age\":27,\"address\":{\"street_address\":\"21 2nd Street\",\"city\":\"New York\",\"state\":\"NY\",\"postal_code\":\"10021-3100\"},\"phone_numbers\":[{\"type\":\"home\",\"number\":\"212 555-1234\"},{\"type\":\"office\",\"number\":\"646 555-4567\"}],\"children\":[\"Catherine\",\"Thomas\",\"Trevor\"],\"spouse\":null}";
+//     char *s = "{\"name\":\"abc\", \"age\":444}";
 //     JSON_TYPE **tokens, *t;
 
 //     tokens_len = json_lex(s, &tokens);

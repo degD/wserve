@@ -1163,7 +1163,8 @@ HTTP_RESPONSE *build_status_response(char *status)
 {
     char *resp_text = "Bad Request";
     
-    if (strcmp(status, "501") == 0) resp_text = "Not Implemented";
+    if (strcmp(status, "200") == 0) resp_text = "OK";
+    else if (strcmp(status, "501") == 0) resp_text = "Not Implemented";
     else if (strcmp(status, "400") == 0) resp_text = "Bad Request";
     else if (strcmp(status, "505") == 0) resp_text = "HTTP Version Not Supported";
     else if (strcmp(status, "404") == 0) resp_text = "Not Found";
@@ -1993,16 +1994,65 @@ char *get_params_val_by_key(char **params, size_t n, char *key)
     return NULL;
 }
 
-int write_file(char *filename, char *data, size_t n)
+ssize_t write_file(char *target, char *data, size_t n)
 {
     if (!is_server_settings_set()) return -1;
 
     char *root = _settings->root;
+    int dirfd, fd;
+    struct stat s;
+    struct open_how f;
     FILE *fp;
 
-    fp = fopen(filename, "w");
-    if (fp == NULL) return -1;
+    // fail if target is NULL, empty, not starting with "/",
+    // or including "./", ".." or "%".
+    if (!validate_target_path(target))
+    {
+        puts("validate: Target path invalid");
+        return -1;
+    }
+
+    // fail if root not dir
+    dirfd = open(root, O_DIRECTORY);
+    if (dirfd == -1)
+    {
+        perror("open: root");
+        return -1;
+    }
+
+    // consider root as / and resolve accordingly
+    // do not resolve symlinks in path
+    f.flags = O_CREAT | O_RDWR;
+    f.mode = 0;
+    f.resolve = RESOLVE_IN_ROOT | RESOLVE_NO_SYMLINKS;
+    fd = openat2(dirfd, target, &f, sizeof(struct open_how));
+    close(dirfd);
+    if (fd == -1)
+    {
+        perror("open: target");
+        return -1;
+    }
+
+    if (fstat(fd, &s) == 0)
+    {
+        if (!S_ISREG(s.st_mode))
+        {
+            perror("open: not file");
+            close(fd);
+            return -1;
+        }
+    }
+
+    fp = fdopen(fd, "w");
+    if (fp == NULL)
+    {
+        close(fd);
+        perror("fdopen: write");
+        return -1;
+    }
     
     fwrite(data, sizeof(char), n, fp);
-    
+    fclose(fp);
+    puts("DONE!");
+    return n;
 }
