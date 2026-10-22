@@ -735,15 +735,20 @@ JSON_TYPE *json_parse2(char *data)
     return json_parse(tokens, n, &i);
 }
 
-JSON_TYPE *json_object_get(JSON_TYPE *t, char *key)
+void *json_object_get(JSON_TYPE *t, char *key)
 {
     if (t == NULL || t->data == NULL || t->type != JSON_TYPE_OBJ) return NULL;
 
     int i = 0;
     JSON_OBJ *data = t->data;
+    JSON_TYPE *k;
     for (i = 0; i < data->len; i++)
-        if (strcmp(key, data->keys[i]) == 0) return data->vals[i];
-
+        if (strcmp(key, data->keys[i]) == 0) 
+        {
+            k = data->vals[i];
+            return k->data;
+        }
+    
     return NULL;
 }
 

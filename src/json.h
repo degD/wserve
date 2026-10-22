@@ -72,6 +72,6 @@ JSON_TYPE *json_parse(JSON_TYPE **tokens, int tokens_len, int *i);
 void json_free(JSON_TYPE *t);
 void json_print_type(JSON_TYPE *t);
 JSON_TYPE *json_parse2(char *data);
-JSON_TYPE *json_object_get(JSON_TYPE *t, char *key);
+void *json_object_get(JSON_TYPE *t, char *key);
 
 #endif

@@ -60,18 +60,22 @@ HTTP_RESPONSE *save_name(HTTP_REQUEST *hr)
     }
 
     json_print_type(t);
-
-    char *name = json_object_get(t, "name")->data;
-    double *age = json_object_get(t, "age")->data;
+    
+    char *name = json_object_get(t, "name");
+    double *age = json_object_get(t, "age");
     char p[100];
+
+    if (name == NULL || age == NULL) 
+        return build_status_response("400");
+
     size_t n;
     sprintf(p, "%s is %.0lf years old.", name, *age);
     
     n = write_file("/post/name.txt", p, strlen(p));
     if (n == -1)
     {
-        return build_response_with_body("POST failed. Do you know why?\n", ".txt");
         json_free(t);
+        return build_response_with_body("POST failed. Do you know why?\n", ".txt");
     }
 
     return build_status_response("200");
