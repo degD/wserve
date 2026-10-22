@@ -34,7 +34,7 @@ JSON_TYPE *json_lex_string(int *i, char *json_str, size_t json_len)
         free(data);
         free(token);
         return NULL;
-    } 
+    }
 
     j = 0;
     while ((c = json_str[*i]) != '\0')
@@ -109,7 +109,6 @@ JSON_TYPE *json_lex_number(int *i, char *json_str, size_t json_len)
 
     token->type = 1;
     data_str[j] = '\0';
-    printf("num: %s\n", data_str);
     *data = strtod(data_str, NULL);
     token->data = data;
     free(data_str);
@@ -148,7 +147,7 @@ JSON_TYPE *json_lex_bool(int *i, char *json_str, size_t json_len)
         *i += false_len;
         token->type = 3;
     }
-    else 
+    else
     {
         free(token);
         return NULL;
@@ -182,7 +181,7 @@ JSON_TYPE *json_lex_null(int *i, char *json_str, size_t json_len)
         *i += null_len;
         token->type = 4;
     }
-    else 
+    else
     {
         free(token);
         return NULL;
@@ -210,7 +209,6 @@ JSON_TYPE *json_lex_null(int *i, char *json_str, size_t json_len)
  */
 int json_lex(char *json_str, JSON_TYPE ***tokens)
 {
-    printf(".. '%s'\n", json_str);
     int i = 0;
     int token_idx = 0;
     char *p;
@@ -219,14 +217,13 @@ int json_lex(char *json_str, JSON_TYPE ***tokens)
 
     while (json_str[i] != '\0')
     {
-        printf("..> %c, '%s'\n", json_str[i], json_str);
         token = json_lex_string(&i, json_str, json_len);
         if (i == -1)
         {
             free(tokens_);
             return -1;
         }
-        else if (token != NULL) 
+        else if (token != NULL)
         {
             tokens_ = realloc(tokens_, sizeof(JSON_TYPE) * (token_idx + 1));
             tokens_[token_idx] = token;
@@ -241,7 +238,7 @@ int json_lex(char *json_str, JSON_TYPE ***tokens)
             free(tokens_);
             return -1;
         }
-        else if (token != NULL) 
+        else if (token != NULL)
         {
             tokens_ = realloc(tokens_, sizeof(JSON_TYPE) * (token_idx + 1));
             tokens_[token_idx] = token;
@@ -250,7 +247,7 @@ int json_lex(char *json_str, JSON_TYPE ***tokens)
         }
 
         token = json_lex_bool(&i, json_str, json_len);
-        if (token != NULL) 
+        if (token != NULL)
         {
             tokens_ = realloc(tokens_, sizeof(JSON_TYPE) * (token_idx + 1));
             tokens_[token_idx] = token;
@@ -259,7 +256,7 @@ int json_lex(char *json_str, JSON_TYPE ***tokens)
         }
 
         token = json_lex_null(&i, json_str, json_len);
-        if (token != NULL) 
+        if (token != NULL)
         {
             tokens_ = realloc(tokens_, sizeof(JSON_TYPE) * (token_idx + 1));
             tokens_[token_idx] = token;
@@ -271,7 +268,6 @@ int json_lex(char *json_str, JSON_TYPE ***tokens)
             i += 1;
         else if (strchr(",[]{}:", json_str[i]) != NULL)
         {
-        printf("xx> %c, '%s'\n", json_str[i], json_str);
 
             token = malloc(sizeof(JSON_TYPE));
             p = malloc(sizeof(char));
@@ -281,12 +277,10 @@ int json_lex(char *json_str, JSON_TYPE ***tokens)
             tokens_ = realloc(tokens_, sizeof(JSON_TYPE) * (token_idx + 1));
             tokens_[token_idx] = token;
             token_idx += 1;
-        printf("xx> %c, '%s'\n", json_str[i], json_str);
-
             i += 1;
             continue;
         }
-        else 
+        else
         {
             printf("Unexpected character '%c' at index %d.\n", json_str[i], i);
             free(tokens_);
@@ -312,7 +306,7 @@ void free_tokens(JSON_TYPE **tokens, int tokens_len)
     if (tokens == NULL) return;
 
     JSON_TYPE *token;
-    for (int i = 0; i < tokens_len; i++) 
+    for (int i = 0; i < tokens_len; i++)
     {
         token = tokens[i];
         free(token->data);
@@ -345,7 +339,7 @@ void print_tokens(JSON_TYPE **tokens, int tokens_len)
     for (int i = 0; i < tokens_len; i++)
     {
         token = tokens[i];
-        switch (token->type) 
+        switch (token->type)
         {
             case 0: printf("<\"%s\">, ", (char*)token->data); break;
             case 1: printf("<%lf>, ", *((double*)token->data)); break;
@@ -415,7 +409,7 @@ int json_array_push(JSON_TYPE *array, JSON_TYPE *item)
     if (array == NULL || array->type != JSON_TYPE_ARR || array->data == NULL) return 0;
 
     JSON_ARR *data = array->data;
-    
+
     data->len += 1;
     data->items = realloc(data->items, sizeof(JSON_TYPE) * data->len);
     data->items[data->len - 1] = item;
@@ -440,7 +434,7 @@ int json_object_push(JSON_TYPE *object, char *key, JSON_TYPE *val)
     if (object == NULL || object->type != JSON_TYPE_OBJ || object->data == NULL) return 0;
 
     JSON_OBJ *data = object->data;
-    
+
     data->len += 1;
     data->keys = realloc(data->keys, sizeof(char*) * data->len);
     data->vals = realloc(data->vals, sizeof(JSON_TYPE*) * data->len);
@@ -463,7 +457,7 @@ int json_object_push(JSON_TYPE *object, char *key, JSON_TYPE *val)
  */
 int json_token_syntax_char_cmp(JSON_TYPE *t, char c)
 {
-    if (t->type == JSON_TYPE_SYN && *((char*)t->data) == c) 
+    if (t->type == JSON_TYPE_SYN && *((char*)t->data) == c)
         return 1;
     else
         return 0;
@@ -562,7 +556,7 @@ JSON_TYPE *json_parse_object(JSON_TYPE **tokens, int tokens_len, int *i)
         }
         *i += 1;
 
-        if (*i >= tokens_len) break;        
+        if (*i >= tokens_len) break;
 
         t = tokens[*i];
         if (!json_token_syntax_char_cmp(t, ':'))
@@ -571,7 +565,7 @@ JSON_TYPE *json_parse_object(JSON_TYPE **tokens, int tokens_len, int *i)
             return NULL;
         }
         *i += 1;
-        
+
         if (*i >= tokens_len) break;
 
         t_val = json_parse(tokens, tokens_len, i);
@@ -646,7 +640,7 @@ JSON_TYPE *json_parse(JSON_TYPE **tokens, int tokens_len, int *i)
 void json_free(JSON_TYPE *t)
 {
     if (t == NULL) return;
-    switch (t->type) 
+    switch (t->type)
     {
         case 0: case 1: case 5: free(t->data); break;
         case 2: case 3: case 4: break;
@@ -743,12 +737,12 @@ void *json_object_get(JSON_TYPE *t, char *key)
     JSON_OBJ *data = t->data;
     JSON_TYPE *k;
     for (i = 0; i < data->len; i++)
-        if (strcmp(key, data->keys[i]) == 0) 
+        if (strcmp(key, data->keys[i]) == 0)
         {
             k = data->vals[i];
             return k->data;
         }
-    
+
     return NULL;
 }
 

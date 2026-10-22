@@ -1127,9 +1127,9 @@ char *itoa_str(unsigned long n)
     return s;
 }
 
-HTTP_RESPONSE *build_response_with_body(char *content, char *ext) 
+HTTP_RESPONSE *build_response_with_body(char *content, char *ext)
 {
-    if (content == NULL || ext == NULL) 
+    if (content == NULL || ext == NULL)
         return NULL;
 
     int nh = 0;
@@ -1143,9 +1143,9 @@ HTTP_RESPONSE *build_response_with_body(char *content, char *ext)
     return init_http_response("200", "OK", content, strlen(content), h, nh);
 }
 
-HTTP_RESPONSE *build_head_response(char *content, char *ext) 
+HTTP_RESPONSE *build_head_response(char *content, char *ext)
 {
-    if (content == NULL || ext == NULL) 
+    if (content == NULL || ext == NULL)
         return NULL;
 
     int nh = 0;
@@ -1162,7 +1162,7 @@ HTTP_RESPONSE *build_head_response(char *content, char *ext)
 HTTP_RESPONSE *build_status_response(char *status)
 {
     char *resp_text = "Bad Request";
-    
+
     if (strcmp(status, "200") == 0) resp_text = "OK";
     else if (strcmp(status, "501") == 0) resp_text = "Not Implemented";
     else if (strcmp(status, "400") == 0) resp_text = "Bad Request";
@@ -1221,12 +1221,12 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr)
     // request is valid. try if there is a route associated with this target.
     // if there is no associated route, fallback to static file serving.
     method = hr->hrl->method;
-    if (strcmp(method, "HEAD") == 0) 
+    if (strcmp(method, "HEAD") == 0)
         method = "GET";
     HTTP_ROUTE *t = init_route(target, method, NULL);
     HTTP_ROUTE *r = find_route(t);
     free(t);
-    if (r != NULL) 
+    if (r != NULL)
     {
         // if head request strip body of get response
         HTTP_RESPONSE *response = r->callback(hr);
@@ -1237,7 +1237,7 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr)
             free(response->body);
         }
         return response;
-    }    
+    }
 
     // route does not exist. static file serving.
     // either GET, HEAD, or POST
@@ -1260,9 +1260,9 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr)
             return build_head_response(buf, ext);
     }
     else
-        // TODO: Implement POST
-        return build_status_response("418");
-    
+        // POST only works for dynamic requests.
+        return build_status_response("404");
+
 }
 
 
@@ -1873,7 +1873,7 @@ ssize_t extract_query_parameters(HTTP_REQUEST *hr, char ***params, char **abs_ta
     char *target;
     char *empty = "";
 
-    // create a copy of target 
+    // create a copy of target
     target = malloc((strlen(hr->hrl->target) + 1) * sizeof(char));
     strcpy(target, hr->hrl->target);
 
@@ -1893,7 +1893,7 @@ ssize_t extract_query_parameters(HTTP_REQUEST *hr, char ***params, char **abs_ta
     while (query != NULL)
     {
         key = split_str(query, "=", &val);
-        if (val == NULL) 
+        if (val == NULL)
             val = empty;
 
         if (key != NULL)
@@ -1987,7 +1987,7 @@ char *get_params_val_by_key(char **params, size_t n, char *key)
     while(i < 2*n)
     {
         printf("%d: %s\n", i, params[i]);
-        if (strcmp(params[i], key) == 0) 
+        if (strcmp(params[i], key) == 0)
             return params[i+1];
         i += 2;
     }
@@ -2050,9 +2050,8 @@ ssize_t write_file(char *target, char *data, size_t n)
         perror("fdopen: write");
         return -1;
     }
-    
+
     fwrite(data, sizeof(char), n, fp);
     fclose(fp);
-    puts("DONE!");
     return n;
 }

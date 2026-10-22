@@ -97,9 +97,9 @@ Simple request validations. Transfer-Encoding, conflicting duplicate Content-Len
 
 Dynamic routing for GET and HEAD. Query parameters. Function documentations.
 
-## v0.13
+## v0.13 [COMPLETE]
 
-Implement POST. Implement JSON parsing. Test JSON parser using JSONTestSuite. Add demo POST endpoint.
+Implement POST and add a demo endpoint. Implement JSON parsing. Test JSON parser using JSONTestSuite. Only supports JSON payload. However, users can write custom payload parsers if necessary.
 
 - https://en.wikipedia.org/wiki/JSON#Data_types
 - https://notes.eatonphil.com/writing-a-simple-json-parser.html
@@ -110,10 +110,10 @@ Implement POST. Implement JSON parsing. Test JSON parser using JSONTestSuite. Ad
 
 HTTPS support using BearSSL.
 
-## v0.15 
+## v0.15
 
-Implement `Transfer-Encoding`. 
+Implement `Transfer-Encoding`.
 
 ## v0.16
 
-E2E testing. Unit testing. Memory safety. Bug fixing and release stability. Modularization.
+E2E testing. Unit testing. Memory safety. Bug fixing and release stability. Modularization. User-facing library for writing routes.
