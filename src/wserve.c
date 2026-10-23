@@ -1128,30 +1128,30 @@ char *itoa_str(unsigned long n)
     return s;
 }
 
-HTTP_RESPONSE *build_response_with_body(char *content, char *ext)
+HTTP_RESPONSE *build_response_with_body(char *content, size_t content_len, char *ext)
 {
     if (content == NULL || ext == NULL)
         return NULL;
 
     int nh = 0;
     char **h = NULL;
-    char *val = itoa_str(strlen(content));
+    char *val = itoa_str(content_len);
     char *mime = mime_type(ext);
 
     h = append_to_headers_list(h, &nh, "content-length", val);
     h = append_to_headers_list(h, &nh, "content-type", mime);
 
-    return init_http_response("200", "OK", content, strlen(content), h, nh);
+    return init_http_response("200", "OK", content, content_len, h, nh);
 }
 
-HTTP_RESPONSE *build_head_response(char *content, char *ext)
+HTTP_RESPONSE *build_head_response(char *content, size_t content_len, char *ext)
 {
     if (content == NULL || ext == NULL)
         return NULL;
 
     int nh = 0;
     char **h = NULL;
-    char *val = itoa_str(strlen(content));
+    char *val = itoa_str(content_len);
     char *mime = mime_type(ext);
 
     h = append_to_headers_list(h, &nh, "content-length", val);
@@ -1249,7 +1249,7 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr)
         if (n == -1 || mime == NULL)
             return build_status_response("404");
         else
-            return build_response_with_body(buf, ext);
+            return build_response_with_body(buf, n, ext);
     }
     else if (strcmp(hr->hrl->method, "HEAD") == 0)
     {
@@ -1258,7 +1258,7 @@ HTTP_RESPONSE *process_http_requests(HTTP_REQUEST *hr)
         if (n == -1 || mime == NULL)
             return build_status_response("404");
         else
-            return build_head_response(buf, ext);
+            return build_head_response(buf, n, ext);
     }
     else
         // POST only works for dynamic requests.

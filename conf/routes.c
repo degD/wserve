@@ -11,7 +11,7 @@
 
 HTTP_RESPONSE *home_route(HTTP_REQUEST *hr)
 {
-    return build_response_with_body("This is my home!", ".txt");
+    return build_response_with_body("This is my home!", 17, ".txt");
 }
 
 HTTP_RESPONSE *say_hello(HTTP_REQUEST *hr)
@@ -23,16 +23,16 @@ HTTP_RESPONSE *say_hello(HTTP_REQUEST *hr)
     if (n < 0)
         return build_status_response("400");
     else if (n == 0)
-        return build_response_with_body("You have no name?!", ".txt");
+        return build_response_with_body("You have no name?!", 19, ".txt");
     else
     {
         char *name = get_params_val_by_key(params, n, "name");
         for (int i = 0; i < 2*n; i++) printf("%s\n", params[i]);
 
         if (name != NULL)
-            return build_response_with_body(smart_concat("Nice name, ", name), ".txt");
+            return build_response_with_body(smart_concat("Nice name, ", name), 12 + strlen(name), ".txt");
         else
-            return build_response_with_body("I asked you your name?", ".txt");
+            return build_response_with_body("I asked you your name?", 23, ".txt");
     }
 }
 
@@ -74,7 +74,7 @@ HTTP_RESPONSE *save_name(HTTP_REQUEST *hr)
     if (n == -1)
     {
         json_free(t);
-        return build_response_with_body("POST failed. Do you know why?\n", ".txt");
+        return build_response_with_body("POST failed. Do you know why?\n", 31, ".txt");
     }
 
     return build_status_response("200");
