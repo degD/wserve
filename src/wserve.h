@@ -105,6 +105,7 @@ HTTP_RESPONSE *init_http_response(
 
 typedef struct SERVER_SETTINGS
 {
+    int secure; // toggle for https
     char *root;
     char *port;
     int backlog;
@@ -114,6 +115,7 @@ typedef struct SERVER_SETTINGS
 SERVER_SETTINGS;
 
 void init_server_settings(
+    int secure,
     char *root,
     char *port,
     int backlog,

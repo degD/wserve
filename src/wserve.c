@@ -848,6 +848,7 @@ int validate_request(HTTP_REQUEST *hr)
  *       remain valid while the server is running.
  */
 void init_server_settings(
+    int secure,
     char *root,
     char *port,
     int backlog,

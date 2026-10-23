@@ -108,7 +108,9 @@ Implement POST and add a demo endpoint. Implement JSON parsing. Test JSON parser
 
 ## v0.14
 
-HTTPS support using BearSSL.
+HTTPS support using BearSSL. Toggle through settings. SSL support can be disabled while building to save space.
+
+- https://www.rfc-editor.org/info/rfc5246/
 
 ## v0.15
 
