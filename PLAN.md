@@ -111,6 +111,10 @@ Implement POST and add a demo endpoint. Implement JSON parsing. Test JSON parser
 HTTPS support using BearSSL. Toggle through settings. SSL support can be disabled while building to save space.
 
 - https://www.rfc-editor.org/info/rfc5246/
+- https://www.bearssl.org/api1.html
+- https://www.reddit.com/r/ComputerSecurity/comments/14a2by3/why_do_we_really_need_intermediate_certificates/
+- https://stackoverflow.com/a/38977354
+- https://stackoverflow.com/a/1790775
 
 ## v0.15
 

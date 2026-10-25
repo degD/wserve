@@ -19,6 +19,20 @@
 #include "json.h"
 
 
+typedef struct SERVER_TX_RX
+{
+    int ssl;
+    int fd;
+    void *sc;
+    void *ioc;
+    void *iobuf;
+    ssize_t (*read)(struct SERVER_TX_RX *self, char *buf, size_t maxrecvsize);
+    ssize_t (*write)(struct SERVER_TX_RX *self, char *buf, size_t maxrecvsize);
+    void (*close)(struct SERVER_TX_RX *self);
+}
+SERVER_TX_RX;
+
+
 // ########################
 // # SERVER TCP FUNCTIONS #
 // ########################
@@ -123,7 +137,7 @@ void init_server_settings(
     size_t total_req_size
 );
 ssize_t http_recv(
-    int newfd,
+    SERVER_TX_RX stxrx,
     char **head,
     char **body,
     size_t *headlen,

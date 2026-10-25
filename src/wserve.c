@@ -1,5 +1,5 @@
 
-#include "wserve.h"
+
 #include <ctype.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -19,6 +19,157 @@
 #include <linux/openat2.h>
 #include <sys/syscall.h>
 #include <unistd.h>
+
+
+// Enable logic related to HTTPS, using full RSA
+// #define ENABLE_SECURE 1
+#include "../BearSSL/inc/bearssl.h"
+#include "../BearSSL/samples/chain-rsa.h"
+#include "../BearSSL/samples/key-rsa.h"
+#define SKEY RSA
+
+#include "wserve.h"
+
+
+
+// ######################
+// # SERVER HTTPS SETUP #
+// ######################
+
+
+ssize_t read_fd(struct SERVER_TX_RX *self, char *buf, size_t maxrecvsize)
+{
+    int fd = self->fd;
+    return recv(fd, buf, maxrecvsize, 0);
+}
+
+ssize_t read_fd_ssl(struct SERVER_TX_RX *self, char *buf, size_t maxrecvsize)
+{
+    br_sslio_context *ioc = self->ioc;
+    return br_sslio_read(ioc, buf, maxrecvsize);
+}
+
+ssize_t write_fd(struct SERVER_TX_RX *self, char *buf, size_t n)
+{
+    int fd = self->fd;
+    return _send(fd, buf, n);
+}
+
+ssize_t write_fd_ssl(struct SERVER_TX_RX *self, char *buf, size_t n)
+{
+    br_sslio_context *ioc = self->ioc;
+    return br_sslio_write_all(ioc, buf, n);
+}
+
+void close_fd(struct SERVER_TX_RX *self)
+{
+    int fd = self->fd;
+    close(fd);
+}
+
+void close_fd_ssl(struct SERVER_TX_RX *self)
+{
+    int err;
+    int fd = self->fd;
+    br_sslio_context *ioc = self->ioc;
+    br_ssl_server_context *sc = self->sc;
+    br_sslio_close(ioc);
+
+    err = br_ssl_engine_last_error(&sc->eng);
+    if (err != 0)
+    {
+        printf("SSL error: %d\n", err);
+    }
+
+    close(fd);
+}
+
+/*
+ * Low-level data read callback for the simplified SSL I/O API.
+ */
+static int
+sock_read(void *ctx, unsigned char *buf, size_t len)
+{
+
+	for (;;) {
+		ssize_t rlen;
+
+		rlen = read(*(int *)ctx, buf, len);
+		if (rlen <= 0) {
+			if (rlen < 0 && errno == EINTR) {
+				continue;
+			}
+			return -1;
+		}
+		return (int)rlen;
+	}
+}
+
+/*
+ * Low-level data write callback for the simplified SSL I/O API.
+ */
+static int
+sock_write(void *ctx, const unsigned char *buf, size_t len)
+{
+	for (;;) {
+		ssize_t wlen;
+
+		wlen = write(*(int *)ctx, buf, len);
+		if (wlen <= 0) {
+			if (wlen < 0 && errno == EINTR) {
+				continue;
+			}
+			return -1;
+		}
+		return (int)wlen;
+	}
+}
+
+SERVER_TX_RX
+init_tx_rx_ssl(int fd)
+{
+    br_ssl_server_context *sc;
+	unsigned char *iobuf;
+	br_sslio_context *ioc;
+    SERVER_TX_RX stxrx;
+
+    sc = malloc(sizeof(br_ssl_server_context));
+	iobuf = malloc(sizeof(unsigned char) * BR_SSL_BUFSIZE_BIDI);
+	ioc = malloc(sizeof(br_sslio_context));
+
+	// TODO: Using hardcoded certificates initially.
+	// TODO: Basically need to change read functions/provide bearssl alternatives.
+	br_ssl_server_init_full_rsa(sc, CHAIN, CHAIN_LEN, &SKEY);
+	br_ssl_engine_set_buffer(&sc->eng, iobuf, sizeof iobuf, 1);
+	br_ssl_server_reset(sc);
+	br_sslio_init(ioc, &sc->eng, sock_read, &fd, sock_write, &fd);
+
+    stxrx.ssl = 1;
+    stxrx.iobuf = iobuf;
+    stxrx.sc = sc;
+    stxrx.ioc = ioc;
+    stxrx.fd = fd;
+    stxrx.read = read_fd_ssl;
+    stxrx.write = write_fd_ssl;
+    stxrx.close = close_fd_ssl;
+
+    return stxrx;
+}
+
+SERVER_TX_RX
+init_tx_rx(int fd)
+{
+    SERVER_TX_RX stxrx;
+
+    stxrx.ssl = 0;
+    stxrx.fd = fd;
+    stxrx.read = read_fd;
+    stxrx.write = write_fd;
+    stxrx.close = close_fd;
+
+    return stxrx;
+}
+
 
 // ########################
 // # SERVER TCP FUNCTIONS #
@@ -905,12 +1056,13 @@ int is_server_settings_set()
  *       `recv_http_body_content_length` to receive the the whole request.
  */
 ssize_t http_recv(
-    int newfd,
+    SERVER_TX_RX stxrx,
     char **head,
     char **body,
     size_t *headlen,
-    size_t *bodylen)
-{
+    size_t *bodylen
+) {
+    int newfd = stxrx.fd;
     char *req, *tmp;
     char *p;
     size_t reqsize = 0;
@@ -1015,8 +1167,10 @@ void wserve_http()
             ssize_t msglen, n;
             HTTP_REQUEST *hr;
             HTTP_RESPONSE *response;
+            SERVER_TX_RX stxrx;
 
-            msglen = http_recv(newfd, &http_msg, &http_body, &headlen, &bodylen);
+            stxrx = init_tx_rx(newfd);
+            msglen = http_recv(stxrx, &http_msg, &http_body, &headlen, &bodylen);
             if (msglen > 0)
             {
                 hr = parse_http_request(http_msg, msglen);
@@ -1027,7 +1181,7 @@ void wserve_http()
 
                     n = tostring_http_response(response, &response_str);
                     if (n > 0)
-                        _send(newfd, response_str, n);
+                        stxrx.write(&stxrx, response_str, n);
                     free_http_response(response);
                     free_http_request(hr);
                 }
