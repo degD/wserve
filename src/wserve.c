@@ -30,8 +30,6 @@
 
 #include "wserve.h"
 
-
-
 // ######################
 // # SERVER HTTPS SETUP #
 // ######################
@@ -39,8 +37,8 @@
 
 ssize_t read_fd(struct SERVER_TX_RX *self, char *buf, size_t maxrecvsize)
 {
-    int fd = self->fd;
-    return recv(fd, buf, maxrecvsize, 0);
+    int *fd = self->fd;
+    return recv(*fd, buf, maxrecvsize, 0);
 }
 
 ssize_t read_fd_ssl(struct SERVER_TX_RX *self, char *buf, size_t maxrecvsize)
@@ -51,8 +49,8 @@ ssize_t read_fd_ssl(struct SERVER_TX_RX *self, char *buf, size_t maxrecvsize)
 
 ssize_t write_fd(struct SERVER_TX_RX *self, char *buf, size_t n)
 {
-    int fd = self->fd;
-    return _send(fd, buf, n);
+    int *fd = self->fd;
+    return _send(*fd, buf, n);
 }
 
 ssize_t write_fd_ssl(struct SERVER_TX_RX *self, char *buf, size_t n)
@@ -63,17 +61,18 @@ ssize_t write_fd_ssl(struct SERVER_TX_RX *self, char *buf, size_t n)
 
 void close_fd(struct SERVER_TX_RX *self)
 {
-    int fd = self->fd;
-    close(fd);
+    int *fd = self->fd;
+    close(*fd);
 }
 
 void close_fd_ssl(struct SERVER_TX_RX *self)
 {
     int err;
-    int fd = self->fd;
+    int *fd = self->fd;
     br_sslio_context *ioc = self->ioc;
     br_ssl_server_context *sc = self->sc;
-    br_sslio_close(ioc);
+    int n = br_sslio_close(ioc);
+    printf("stat: %d\n", n);
 
     err = br_ssl_engine_last_error(&sc->eng);
     if (err != 0)
@@ -81,7 +80,8 @@ void close_fd_ssl(struct SERVER_TX_RX *self)
         printf("SSL error: %d\n", err);
     }
 
-    close(fd);
+    printf("CLOSING SSL!\n");
+    close(*fd);
 }
 
 /*
@@ -126,17 +126,16 @@ sock_write(void *ctx, const unsigned char *buf, size_t len)
 }
 
 SERVER_TX_RX
-init_tx_rx_ssl(int fd)
+init_tx_rx_ssl(int *fd)
 {
     int err;
     br_ssl_server_context *sc;
-	unsigned char iobuf[BR_SSL_BUFSIZE_BIDI];
+	unsigned char *iobuf;
 	br_sslio_context *ioc;
     SERVER_TX_RX stxrx;
 
     sc = malloc(sizeof(br_ssl_server_context));
-	// iobuf = malloc(BR_SSL_BUFSIZE_BIDI);
-	// TODO: why dynamic allocation fails?
+	iobuf = malloc(BR_SSL_BUFSIZE_BIDI);
 	ioc = malloc(sizeof(br_sslio_context));
 
 	// TODO: Using hardcoded certificates initially.
@@ -148,7 +147,7 @@ init_tx_rx_ssl(int fd)
         printf("1. SSL error: %d\n", err);
     }
 
-	br_ssl_engine_set_buffer(&sc->eng, iobuf, sizeof iobuf, 1);
+	br_ssl_engine_set_buffer(&sc->eng, iobuf, BR_SSL_BUFSIZE_BIDI, 1);
 	err = br_ssl_engine_last_error(&sc->eng);
     if (err != 0)
     {
@@ -162,7 +161,7 @@ init_tx_rx_ssl(int fd)
         printf("3. SSL error: %d\n", err);
     }
 
-	br_sslio_init(ioc, &sc->eng, sock_read, &fd, sock_write, &fd);
+	br_sslio_init(ioc, &sc->eng, sock_read, fd, sock_write, fd);
 	err = br_ssl_engine_last_error(&sc->eng);
     if (err != 0)
     {
@@ -182,7 +181,7 @@ init_tx_rx_ssl(int fd)
 }
 
 SERVER_TX_RX
-init_tx_rx(int fd)
+init_tx_rx(int *fd)
 {
     SERVER_TX_RX stxrx;
 
@@ -1193,7 +1192,7 @@ void wserve_http()
             HTTP_RESPONSE *response;
             SERVER_TX_RX stxrx;
 
-            stxrx = init_tx_rx_ssl(newfd);
+            stxrx = init_tx_rx_ssl(&newfd);
             msglen = http_recv(stxrx, &http_msg, &http_body, &headlen, &bodylen);
             if (msglen > 0)
             {
@@ -1205,7 +1204,16 @@ void wserve_http()
 
                     n = tostring_http_response(response, &response_str);
                     if (n > 0)
+                    {
                         stxrx.write(&stxrx, response_str, n);
+                        br_ssl_server_context *sc = stxrx.sc;
+                        int err = br_ssl_engine_last_error(&sc->eng);
+                        if (err != 0)
+                        {
+                            printf("99. SSL error: %d\n", err);
+                        }
+                        puts("No error");
+                    }
                     free_http_response(response);
                     free_http_request(hr);
                 }

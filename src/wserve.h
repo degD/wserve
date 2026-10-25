@@ -22,7 +22,7 @@
 typedef struct SERVER_TX_RX
 {
     int ssl;
-    int fd;
+    int *fd;
     void *sc;
     void *ioc;
     void *iobuf;
