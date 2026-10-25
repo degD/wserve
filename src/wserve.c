@@ -128,21 +128,46 @@ sock_write(void *ctx, const unsigned char *buf, size_t len)
 SERVER_TX_RX
 init_tx_rx_ssl(int fd)
 {
+    int err;
     br_ssl_server_context *sc;
-	unsigned char *iobuf;
+	unsigned char iobuf[BR_SSL_BUFSIZE_BIDI];
 	br_sslio_context *ioc;
     SERVER_TX_RX stxrx;
 
     sc = malloc(sizeof(br_ssl_server_context));
-	iobuf = malloc(sizeof(unsigned char) * BR_SSL_BUFSIZE_BIDI);
+	// iobuf = malloc(BR_SSL_BUFSIZE_BIDI);
+	// TODO: why dynamic allocation fails?
 	ioc = malloc(sizeof(br_sslio_context));
 
 	// TODO: Using hardcoded certificates initially.
 	// TODO: Basically need to change read functions/provide bearssl alternatives.
 	br_ssl_server_init_full_rsa(sc, CHAIN, CHAIN_LEN, &SKEY);
+	err = br_ssl_engine_last_error(&sc->eng);
+    if (err != 0)
+    {
+        printf("1. SSL error: %d\n", err);
+    }
+
 	br_ssl_engine_set_buffer(&sc->eng, iobuf, sizeof iobuf, 1);
+	err = br_ssl_engine_last_error(&sc->eng);
+    if (err != 0)
+    {
+        printf("2. SSL error: %d\n", err);
+    }
+
 	br_ssl_server_reset(sc);
+	err = br_ssl_engine_last_error(&sc->eng);
+    if (err != 0)
+    {
+        printf("3. SSL error: %d\n", err);
+    }
+
 	br_sslio_init(ioc, &sc->eng, sock_read, &fd, sock_write, &fd);
+	err = br_ssl_engine_last_error(&sc->eng);
+    if (err != 0)
+    {
+        printf("4. SSL error: %d\n", err);
+    }
 
     stxrx.ssl = 1;
     stxrx.iobuf = iobuf;
@@ -1062,7 +1087,6 @@ ssize_t http_recv(
     size_t *headlen,
     size_t *bodylen
 ) {
-    int newfd = stxrx.fd;
     char *req, *tmp;
     char *p;
     size_t reqsize = 0;
@@ -1076,7 +1100,7 @@ ssize_t http_recv(
     totalreqsize = _settings->total_req_size;
 
     req = malloc((1 + maxrecvsize) * sizeof(char));
-    n = recv(newfd, req, maxrecvsize, 0);
+    n = stxrx.read(&stxrx, req, maxrecvsize);
     while (n > 0)
     {
         reqsize += n;
@@ -1106,7 +1130,7 @@ ssize_t http_recv(
             return reqsize;
         }
 
-        n = recv(newfd, req + reqsize, maxrecvsize, 0);
+        n = stxrx.read(&stxrx, req + reqsize, maxrecvsize);
     }
     if (n == 0)
     {
@@ -1169,7 +1193,7 @@ void wserve_http()
             HTTP_RESPONSE *response;
             SERVER_TX_RX stxrx;
 
-            stxrx = init_tx_rx(newfd);
+            stxrx = init_tx_rx_ssl(newfd);
             msglen = http_recv(stxrx, &http_msg, &http_body, &headlen, &bodylen);
             if (msglen > 0)
             {
@@ -1188,7 +1212,7 @@ void wserve_http()
                 free(http_msg);
             }
 
-            close(newfd);
+            stxrx.close(&stxrx);
             exit(0);
         }
         close(newfd);
@@ -1216,8 +1240,8 @@ ssize_t recv_http_body_content_length(
     int newfd,
     int headsize,
     char **body, size_t bodylen,
-    size_t contentlength)
-{
+    size_t contentlength
+) {
     char *newbody;
     char *p;
     ssize_t n;
