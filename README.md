@@ -1,7 +1,7 @@
 
 # WSERVE: Static Web Server in Pure C
 
-This is a static IPv4 Linux web server written in pure C. No external libraries used. Even the parser is written in pure C. It supports a subset of HTTP/1.1. The target goal is to build a WSGI web application framework, like Flask, that will support GET, HEAD, POST methods. Future goals are HTTPS support through [bearSSL](https://www.bearssl.org/), `Transfer-Encoding` support, extensive E2E testing and a stable release.
+This is a static IPv4 Linux web server written in pure C. No external libraries used, except [bearSSL](https://www.bearssl.org/). Even the HTTP parser is written in pure C. It supports a subset of HTTP/1.1. GET, HEAD, POST requests are supported and custom paths can be configured for dynamic routing. HTTPS is supported through [bearSSL](https://www.bearssl.org/). But `Transfer-Encoding` support, extensive E2E testing and a stable release is still in progress. The project also includes a custom JSON parser specifically designed for the POST requests. 
 
 ## Features
 
@@ -14,13 +14,14 @@ This is a static IPv4 Linux web server written in pure C. No external libraries 
 - Automatic rejection of malformed requests.
 - Prevention of static directory escape.
 - Extensive error responses.
+- Dynamic routes
+- Functional `POST` handling
+- Custom JSON parser
+- HTTPS
 
 ## Not supported
 
-- Dynamic routes
-- Functional `POST` handling
 - Keep-alive connections
-- HTTPS
 - Chunked transfer encoding
 - Production hardening or compatibility guarantees
 
@@ -29,7 +30,7 @@ This is a static IPv4 Linux web server written in pure C. No external libraries 
 - [x] TCP Server
 - [x] HTTP Parser
 - [x] Static Routing
-- [ ] Dynamic Routing
+- [x] Dynamic Routing
 
 For detailed version roadmap, see [PLAN.md](PLAN.md).
 
@@ -42,6 +43,7 @@ This is a learning project by a single developer. Use it only as a reference. It
 - Linux kernel 5.6 or later (`openat2()` is required)
 - GCC
 - Make
+- BearSSL (For HTTPS)
 
 ## Installation
 
@@ -50,10 +52,21 @@ This is a learning project by a single developer. Use it only as a reference. It
 3. `make`
 4. `./wserve`
 
+To compile with BearSSL:
+
+1. `cd wserve`
+2. `git clone https://www.bearssl.org/git/BearSSL`
+3. `cd BearSSL && make`
+4. `cd .. && SECURE=1 make`
+
 To run unit tests:
 
 1. `make test.parser && ./test.parser`
 2. `make test.static && ./test.static`
+
+To test the JSON parser, [see detailed instructions](./test/json/setup.md). JSON parser is WIP. But the current test results are promising. Check `C wserve`.
+
+![JSON test results](assets/json-parser-results-18-10-2026.png)
 
 ## Configuration
 

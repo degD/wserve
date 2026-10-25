@@ -20,26 +20,15 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
+#include "wserve.h"
 
-// Enable logic related to HTTPS, using full RSA
-// #define ENABLE_SECURE 1
+
+#if ENABLE_SECURE
+
 #include "../BearSSL/inc/bearssl.h"
 #include "../BearSSL/samples/chain-rsa.h"
 #include "../BearSSL/samples/key-rsa.h"
 #define SKEY RSA
-
-#include "wserve.h"
-
-// ######################
-// # SERVER HTTPS SETUP #
-// ######################
-
-
-ssize_t read_fd(struct SERVER_TX_RX *self, char *buf, size_t maxrecvsize)
-{
-    int *fd = self->fd;
-    return recv(*fd, buf, maxrecvsize, 0);
-}
 
 ssize_t read_fd_ssl(struct SERVER_TX_RX *self, char *buf, size_t maxrecvsize)
 {
@@ -47,22 +36,10 @@ ssize_t read_fd_ssl(struct SERVER_TX_RX *self, char *buf, size_t maxrecvsize)
     return br_sslio_read(ioc, buf, maxrecvsize);
 }
 
-ssize_t write_fd(struct SERVER_TX_RX *self, char *buf, size_t n)
-{
-    int *fd = self->fd;
-    return _send(*fd, buf, n);
-}
-
 ssize_t write_fd_ssl(struct SERVER_TX_RX *self, char *buf, size_t n)
 {
     br_sslio_context *ioc = self->ioc;
     return br_sslio_write_all(ioc, buf, n);
-}
-
-void close_fd(struct SERVER_TX_RX *self)
-{
-    int *fd = self->fd;
-    close(*fd);
 }
 
 void close_fd_ssl(struct SERVER_TX_RX *self)
@@ -183,6 +160,32 @@ init_tx_rx_ssl(int *fd)
 SERVER_TX_RX
 init_tx_rx(int *fd)
 {
+    return init_tx_rx_ssl(fd);
+}
+
+#else
+
+ssize_t read_fd(struct SERVER_TX_RX *self, char *buf, size_t maxrecvsize)
+{
+    int *fd = self->fd;
+    return recv(*fd, buf, maxrecvsize, 0);
+}
+
+ssize_t write_fd(struct SERVER_TX_RX *self, char *buf, size_t n)
+{
+    int *fd = self->fd;
+    return _send(*fd, buf, n);
+}
+
+void close_fd(struct SERVER_TX_RX *self)
+{
+    int *fd = self->fd;
+    close(*fd);
+}
+
+SERVER_TX_RX
+init_tx_rx(int *fd)
+{
     SERVER_TX_RX stxrx;
 
     stxrx.ssl = 0;
@@ -193,6 +196,8 @@ init_tx_rx(int *fd)
 
     return stxrx;
 }
+
+#endif
 
 
 // ########################
@@ -1192,7 +1197,7 @@ void wserve_http()
             HTTP_RESPONSE *response;
             SERVER_TX_RX stxrx;
 
-            stxrx = init_tx_rx_ssl(&newfd);
+            stxrx = init_tx_rx(&newfd);
             msglen = http_recv(stxrx, &http_msg, &http_body, &headlen, &bodylen);
             if (msglen > 0)
             {
@@ -1204,16 +1209,7 @@ void wserve_http()
 
                     n = tostring_http_response(response, &response_str);
                     if (n > 0)
-                    {
                         stxrx.write(&stxrx, response_str, n);
-                        br_ssl_server_context *sc = stxrx.sc;
-                        int err = br_ssl_engine_last_error(&sc->eng);
-                        if (err != 0)
-                        {
-                            printf("99. SSL error: %d\n", err);
-                        }
-                        puts("No error");
-                    }
                     free_http_response(response);
                     free_http_request(hr);
                 }
