@@ -26,6 +26,7 @@ typedef struct SERVER_TX_RX
     void *sc;
     void *ioc;
     void *iobuf;
+    void *decoder;
     ssize_t (*read)(struct SERVER_TX_RX *self, char *buf, size_t maxrecvsize);
     ssize_t (*write)(struct SERVER_TX_RX *self, char *buf, size_t maxrecvsize);
     void (*close)(struct SERVER_TX_RX *self);

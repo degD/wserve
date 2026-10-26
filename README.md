@@ -1,7 +1,7 @@
 
 # WSERVE: Static Web Server in Pure C
 
-This is a static IPv4 Linux web server written in pure C. No external libraries used, except [bearSSL](https://www.bearssl.org/). Even the HTTP parser is written in pure C. It supports a subset of HTTP/1.1. GET, HEAD, POST requests are supported and custom paths can be configured for dynamic routing. HTTPS is supported through [bearSSL](https://www.bearssl.org/). But `Transfer-Encoding` support, extensive E2E testing and a stable release is still in progress. The project also includes a custom JSON parser specifically designed for the POST requests. 
+This is a static IPv4 Linux web server written in pure C. No external libraries used, except [bearSSL](https://www.bearssl.org/). Even the HTTP parser is written in pure C. It supports a subset of HTTP/1.1. GET, HEAD, POST requests are supported and custom paths can be configured for dynamic routing. HTTPS is supported through [bearSSL](https://www.bearssl.org/). But `Transfer-Encoding: chunked` support, extensive E2E testing and a stable release is still in progress. The project also includes a custom JSON parser specifically designed for the POST requests. 
 
 ## Features
 
@@ -19,7 +19,7 @@ This is a static IPv4 Linux web server written in pure C. No external libraries 
 - Custom JSON parser
 - HTTPS
 
-## Not supported
+## Not supported (yet)
 
 - Keep-alive connections
 - Chunked transfer encoding
@@ -89,6 +89,8 @@ init_server_settings(
 - **backlog**: Max number of requests to be kept on the queue. 
 - **max_recv_size**: Max number of bytes to receive in a single step.
 - **total_req_size**: Max size of a request.
+
+By default, `wserve` uses self-signed test certificates in HTTPS mode. For details, [see certificate generation page](test/https/README.md).
 
 ## Source
 

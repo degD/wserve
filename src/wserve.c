@@ -22,13 +22,110 @@
 
 #include "wserve.h"
 
-
 #if ENABLE_SECURE
-
 #include "../BearSSL/inc/bearssl.h"
-#include "../BearSSL/samples/chain-rsa.h"
-#include "../BearSSL/samples/key-rsa.h"
-#define SKEY RSA
+
+typedef struct SSL_SETTINGS
+{
+    void *decoder;
+    void *skey;
+    void *chain;
+    size_t chain_len;
+}
+SSL_SETTINGS;
+SSL_SETTINGS *_ssl_settings = NULL;
+
+unsigned char *read_file(char *path, size_t *len)
+{
+    FILE *fp;
+    unsigned char *data;
+
+    fp = fopen(path, "rb");
+    if (fp == NULL) return NULL;
+
+    fseek(fp, 0, SEEK_END);
+    *len = ftell(fp);
+    data = malloc(*len * sizeof(unsigned char));
+
+    rewind(fp);
+    fread(data, sizeof(unsigned char), *len, fp);
+
+    fclose(fp);
+    return data;
+}
+
+int init_ssl_settings(char *skey_path, char *cert_paths)
+{
+    int i, chain_len;
+    char *saveptr, *path, *t;
+    size_t *cert_len, key_len;
+    unsigned char **cert_data, *key_data;
+    br_rsa_private_key *tmp, *priv_key;
+    br_skey_decoder_context *decoder;
+    br_x509_certificate *chain;
+
+    _ssl_settings = malloc(sizeof(SSL_SETTINGS));
+
+    // path to the key file
+    key_data = read_file(skey_path, &key_len);
+
+    // path to certs, comma between different ones.
+    // First is server cert, rest are intermediate
+    i = 0;
+    cert_len = NULL;
+    cert_data = NULL;
+    path = strtok_r(cert_paths, ",", &saveptr);
+    while (path != NULL)
+    {
+        i += 1;
+        cert_len = realloc(cert_len, sizeof(size_t) * i);
+        cert_data = realloc(cert_data, sizeof(unsigned char *) * i);
+        cert_data[i-1] = read_file(path, &cert_len[i-1]);
+        if (cert_data[i-1] == NULL)
+        {
+            for (int j = 0; j < i-1; j++) free(cert_data[j]);
+            break;
+        }
+        path = strtok_r(NULL, ",", &saveptr);
+    }
+    chain_len = i;
+
+    if (cert_data == NULL || key_data == NULL)
+    {
+        puts("read_key_cert: Key file or certificates not found");
+        free(cert_data);
+        free(key_data);
+        return 1;
+    }
+
+    // Decode RSA private key
+    decoder = malloc(sizeof(br_skey_decoder_context));
+    br_skey_decoder_init(decoder);
+    br_skey_decoder_push(decoder, key_data, key_len);
+    priv_key = br_skey_decoder_get_rsa(decoder);
+    free(key_data);
+
+    if (priv_key == NULL)
+    {
+        puts("read_key_cert: Invalid RSA key");
+        free(cert_data);
+        return 1;
+    }
+    _ssl_settings->decoder = decoder;
+    _ssl_settings->skey = priv_key;
+
+    // Initialize certificates chain
+    chain = malloc(sizeof(br_x509_certificate) * chain_len);
+    for (i = 0; i < chain_len; i++)
+    {
+        chain[i].data = cert_data[i];
+        chain[i].data_len = cert_len[i];
+    }
+    _ssl_settings->chain = chain;
+    _ssl_settings->chain_len = chain_len;
+
+    return 0;
+}
 
 ssize_t read_fd_ssl(struct SERVER_TX_RX *self, char *buf, size_t maxrecvsize)
 {
@@ -117,7 +214,7 @@ init_tx_rx_ssl(int *fd)
 
 	// TODO: Using hardcoded certificates initially.
 	// TODO: Basically need to change read functions/provide bearssl alternatives.
-	br_ssl_server_init_full_rsa(sc, CHAIN, CHAIN_LEN, &SKEY);
+	br_ssl_server_init_full_rsa(sc, _ssl_settings->chain, _ssl_settings->chain_len, _ssl_settings->skey);
 	err = br_ssl_engine_last_error(&sc->eng);
     if (err != 0)
     {
@@ -1041,6 +1138,10 @@ void init_server_settings(
     _settings->backlog = backlog;
     _settings->max_recv_size = max_recv_size;
     _settings->total_req_size = total_req_size;
+
+    #if ENABLE_SECURE
+    init_ssl_settings("test/https/server-key.der", "test/https/server-cert.der");
+    #endif
 }
 
 /**
