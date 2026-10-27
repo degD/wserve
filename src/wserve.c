@@ -1,5 +1,4 @@
 
-
 #include <ctype.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -24,17 +23,26 @@
 
 #if ENABLE_SECURE
 #include "../BearSSL/inc/bearssl.h"
+// Only enable HTTPS (SSL) if flag is enabled while building.
 
+
+// Object holding settings related to SSL configuration.
+// It is a global variable for easy access.
 typedef struct SSL_SETTINGS
 {
-    void *decoder;
-    void *skey;
-    void *chain;
+    br_skey_decoder_context *decoder;
+    br_x509_certificate *chain;
     size_t chain_len;
+    const br_rsa_private_key *skey;
 }
 SSL_SETTINGS;
 SSL_SETTINGS *_ssl_settings = NULL;
 
+
+/**
+ * Read a binary file.
+ * Return either pointer to data, or NULL if fails.
+ */
 unsigned char *read_file(char *path, size_t *len)
 {
     FILE *fp;
@@ -54,13 +62,24 @@ unsigned char *read_file(char *path, size_t *len)
     return data;
 }
 
+/**
+ * Initialize SSL settings, load key and certificates.
+ *
+ * Certificate paths are separated with commas.
+ * First certificate should be server certificate, and
+ * others should be intermediate certificates.
+ *
+ * This function should return 0. In case it doesn't, that
+ * means loading key or certificates have failed. Terminate
+ * the server.
+ */
 int init_ssl_settings(char *skey_path, char *cert_paths)
 {
     int i, chain_len;
-    char *saveptr, *path, *t;
+    char *saveptr, *path;
     size_t *cert_len, key_len;
     unsigned char **cert_data, *key_data;
-    br_rsa_private_key *tmp, *priv_key;
+    const br_rsa_private_key *priv_key;
     br_skey_decoder_context *decoder;
     br_x509_certificate *chain;
 
@@ -127,26 +146,34 @@ int init_ssl_settings(char *skey_path, char *cert_paths)
     return 0;
 }
 
+/**
+ * read from socket using bearssl
+ */
 ssize_t read_fd_ssl(struct SERVER_TX_RX *self, char *buf, size_t maxrecvsize)
 {
     br_sslio_context *ioc = self->ioc;
     return br_sslio_read(ioc, buf, maxrecvsize);
 }
 
+/**
+ * read to a socket using bearssl
+ */
 ssize_t write_fd_ssl(struct SERVER_TX_RX *self, char *buf, size_t n)
 {
     br_sslio_context *ioc = self->ioc;
     return br_sslio_write_all(ioc, buf, n);
 }
 
+/**
+ * close the socket and terminate ssl connection
+ */
 void close_fd_ssl(struct SERVER_TX_RX *self)
 {
     int err;
     int *fd = self->fd;
     br_sslio_context *ioc = self->ioc;
     br_ssl_server_context *sc = self->sc;
-    int n = br_sslio_close(ioc);
-    printf("stat: %d\n", n);
+    br_sslio_close(ioc);
 
     err = br_ssl_engine_last_error(&sc->eng);
     if (err != 0)
@@ -154,8 +181,10 @@ void close_fd_ssl(struct SERVER_TX_RX *self)
         printf("SSL error: %d\n", err);
     }
 
-    printf("CLOSING SSL!\n");
     close(*fd);
+    free(self->iobuf);
+    free(self->ioc);
+    free(self->sc);
 }
 
 /*
@@ -202,7 +231,6 @@ sock_write(void *ctx, const unsigned char *buf, size_t len)
 SERVER_TX_RX
 init_tx_rx_ssl(int *fd)
 {
-    int err;
     br_ssl_server_context *sc;
 	unsigned char *iobuf;
 	br_sslio_context *ioc;
@@ -212,35 +240,10 @@ init_tx_rx_ssl(int *fd)
 	iobuf = malloc(BR_SSL_BUFSIZE_BIDI);
 	ioc = malloc(sizeof(br_sslio_context));
 
-	// TODO: Using hardcoded certificates initially.
-	// TODO: Basically need to change read functions/provide bearssl alternatives.
 	br_ssl_server_init_full_rsa(sc, _ssl_settings->chain, _ssl_settings->chain_len, _ssl_settings->skey);
-	err = br_ssl_engine_last_error(&sc->eng);
-    if (err != 0)
-    {
-        printf("1. SSL error: %d\n", err);
-    }
-
 	br_ssl_engine_set_buffer(&sc->eng, iobuf, BR_SSL_BUFSIZE_BIDI, 1);
-	err = br_ssl_engine_last_error(&sc->eng);
-    if (err != 0)
-    {
-        printf("2. SSL error: %d\n", err);
-    }
-
 	br_ssl_server_reset(sc);
-	err = br_ssl_engine_last_error(&sc->eng);
-    if (err != 0)
-    {
-        printf("3. SSL error: %d\n", err);
-    }
-
 	br_sslio_init(ioc, &sc->eng, sock_read, fd, sock_write, fd);
-	err = br_ssl_engine_last_error(&sc->eng);
-    if (err != 0)
-    {
-        printf("4. SSL error: %d\n", err);
-    }
 
     stxrx.ssl = 1;
     stxrx.iobuf = iobuf;
@@ -1123,6 +1126,9 @@ int validate_request(HTTP_REQUEST *hr)
  *
  * @note `root` and `port` are stored without copying, so both strings must
  *       remain valid while the server is running.
+ *
+ * If not running in HTTPS mode, pass NULL to key_path and cert_paths. They
+ * will be ignored.
  */
 void init_server_settings(
     int secure,
@@ -1130,8 +1136,10 @@ void init_server_settings(
     char *port,
     int backlog,
     size_t max_recv_size,
-    size_t total_req_size)
-{
+    size_t total_req_size,
+    char *key_path,
+    char *cert_paths
+) {
     _settings = malloc(sizeof(SERVER_SETTINGS));
     _settings->root = root;
     _settings->port = port;
@@ -1140,7 +1148,9 @@ void init_server_settings(
     _settings->total_req_size = total_req_size;
 
     #if ENABLE_SECURE
-    init_ssl_settings("test/https/server-key.der", "test/https/server-cert.der");
+    // running only if HTTPS
+    int n = init_ssl_settings(key_path, cert_paths);
+    if (n != 0) exit(2);
     #endif
 }
 

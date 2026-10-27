@@ -19,6 +19,10 @@
 #include "json.h"
 
 
+/**
+ * The purpose of this struct is to unify communication operations
+ * for server in both HTTP and HTTPS modes.
+ */
 typedef struct SERVER_TX_RX
 {
     int ssl;
@@ -26,7 +30,6 @@ typedef struct SERVER_TX_RX
     void *sc;
     void *ioc;
     void *iobuf;
-    void *decoder;
     ssize_t (*read)(struct SERVER_TX_RX *self, char *buf, size_t maxrecvsize);
     ssize_t (*write)(struct SERVER_TX_RX *self, char *buf, size_t maxrecvsize);
     void (*close)(struct SERVER_TX_RX *self);
@@ -135,7 +138,9 @@ void init_server_settings(
     char *port,
     int backlog,
     size_t max_recv_size,
-    size_t total_req_size
+    size_t total_req_size,
+    char *key_path,
+    char *cert_paths
 );
 ssize_t http_recv(
     SERVER_TX_RX stxrx,
