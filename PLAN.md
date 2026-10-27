@@ -106,9 +106,9 @@ Implement POST and add a demo endpoint. Implement JSON parsing. Test JSON parser
 - https://www.rfc-editor.org/info/rfc8259/
 - https://github.com/nst/JSONTestSuite
 
-## v0.14
+## v0.14 [COMPLETE]
 
-HTTPS support using BearSSL. Toggle SSL support while building the server. Compile with `SECURE=1 make` to enable HTTPS.
+HTTPS support using BearSSL. Toggle SSL support while building the server. Compile with `make SECURE=1` to enable HTTPS.
 
 - https://www.rfc-editor.org/info/rfc5246/
 - https://www.bearssl.org/api1.html

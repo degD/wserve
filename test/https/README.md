@@ -1,7 +1,7 @@
 
 # Certificates and How to Generate Them
 
-The certificates inside this file are self-signed by me. Do not ever use them in any kind of production, ever. You have been warned.
+The certificates inside this file are self-signed by me. Do not use them in any kind of production, ever. You have been warned.
 
 The following command is used to generate keys:
 
@@ -26,3 +26,5 @@ openssl x509 -in test/https/server.crt \
 openssl pkey -in test/https/server.key \
   -outform DER -out test/https/server-key.der
 ```
+
+The server tested with a single self-signed certificate, but not tested with a genuine CA-issued certificate chain.
